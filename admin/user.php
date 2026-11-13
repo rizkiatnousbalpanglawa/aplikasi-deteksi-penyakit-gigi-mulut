@@ -27,17 +27,18 @@
            </thead>
            <tbody>
                <?php $no = 1;
-                $get = $koneksi->query("SELECT * FROM user") ?>
+                $get = $koneksi->query(
+                    'SELECT id_user, nama, tgl_lahir, alamat, no_hp FROM user ORDER BY id_user DESC'
+                ) ?>
                <?php while ($set = $get->fetch_assoc()) : ?>
                    <tr>
                        <td style="vertical-align: middle" class="text-center"><?= $no ?></td>
-                       <td style="vertical-align: middle" class="text-center"><?= $set['nama'] ?></td>
-                       <td style="vertical-align: middle" class="text-center"><?= date("d M Y",strtotime($set['tgl_lahir'])) ?></td>
-                       <td style="vertical-align: middle" class="text-center"><?= $set['alamat'] ?></td>
-                       <td style="vertical-align: middle" class="text-center"><?= $set['no_hp'] ?></td>
+                       <td style="vertical-align: middle" class="text-center"><?= e($set['nama']) ?></td>
+                       <td style="vertical-align: middle" class="text-center"><?= e(date("d M Y", strtotime($set['tgl_lahir']))) ?></td>
+                       <td style="vertical-align: middle" class="text-center"><?= e($set['alamat']) ?></td>
+                       <td style="vertical-align: middle" class="text-center"><?= e($set['no_hp']) ?></td>
                        <td style="vertical-align: middle" class="text-center">
-                           <a href="index.php?page=user-riwayat&id=<?= $set['id_user'] ?>" class="btn btn-primary btn-sm"><i class="fa fa-file-o"></i> Riwayat</a>
-                           <a href="" class="btn btn-danger btn-sm"><i class="fa fa-times"></i> Hapus</a>
+                           <a href="index.php?page=user-riwayat&id=<?= (int) $set['id_user'] ?>" class="btn btn-primary btn-sm"><i class="fa fa-file-o"></i> Riwayat</a>
                        </td>
                    </tr>
                <?php $no++; endwhile ?>

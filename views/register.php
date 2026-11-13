@@ -9,7 +9,7 @@
     <!-- Custom Fonts -->
     <link href="../assets/font-awesome/css/font-awesome.min.css" rel="stylesheet" type="text/css">
     <link href="../assets/css/custom.css" rel="stylesheet" type="text/css">
-    <?php include "../config/koneksi.php" ?>
+    <?php require_once __DIR__ . '/../config/helpers.php'; start_secure_session(); include "../config/koneksi.php" ?>
 </head>
 
 <body class="bg-putih">
@@ -20,19 +20,20 @@
             </div>
         </div>
     </div>
-    
+
     <div class="container">
         <h3 class="mt-2"> <i class="fa fa-th-list"></i> Daftar</h3>
         <hr class="mt-0 bg-biru">
 
         <form action="register-act.php" method="post" enctype="multipart/form-data">
+            <?php echo csrf_field(); ?>
             <div class="form-group">
                 <label for="">Nama</label>
                 <input type="text" class="form-control" placeholder="Nama Saya" name="nama" required>
             </div>
             <div class="form-group">
                 <label for="">Tanggal Lahir</label>
-                <input type="datetime-local" class="form-control" name="tgl_lahir" id="" required>
+                <input type="date" class="form-control" name="tgl_lahir" id="" required>
             </div>
             <div class="form-group">
                 <label for="">Alamat</label>

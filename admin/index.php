@@ -1,10 +1,7 @@
 <?php
-session_start();
+require_once __DIR__ . "/../config/helpers.php";
+require_admin();
 include "../config/koneksi.php";
-
-if (!isset($_SESSION['admin']['user'])) {
-    echo "<script>alert('Login Dulu');location='../login/'</script>";
-}
 ?>
 
 <!DOCTYPE html>
@@ -57,7 +54,7 @@ if (!isset($_SESSION['admin']['user'])) {
             <!-- Top Menu Items -->
             <ul class="nav navbar-right top-nav">
                 <li class="dropdown">
-                    <a href="#" class="dropdown-toggle" data-toggle="dropdown"><i class="fa fa-user"></i> <?= $_SESSION['admin']['user'] ?> <b class="caret"></b></a>
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown"><i class="fa fa-user"></i> <?= e($_SESSION['admin']['user'] ?? '') ?> <b class="caret"></b></a>
                     <ul class="dropdown-menu">
                         <li><a href="logout.php"><i class="fa fa-fw fa-power-off"></i> Log Out</a></li>
                     </ul>
@@ -101,9 +98,9 @@ if (!isset($_SESSION['admin']['user'])) {
                         case 'gejala':
                             include "gejala.php";
                             break;
-                        case 'user-riwayat';
+                        case 'user-riwayat':
                             include "user-riwayat.php";
-                        break;
+                            break;
                         default:
                             include "user.php";
                             break;

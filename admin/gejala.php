@@ -7,7 +7,6 @@
            <ol class="breadcrumb">
                <li class="">
                    <i class="fa fa-th-list"></i> Gejala
-
                </li>
                <li>
                    <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#myModal">
@@ -30,15 +29,14 @@
            </thead>
            <tbody>
                <?php $no = 1;
-                $get = $koneksi->query("SELECT * FROM gejala") ?>
+                $get = $koneksi->query("SELECT id_gejala, gejala FROM gejala ORDER BY id_gejala ASC") ?>
                <?php while ($set = $get->fetch_assoc()) : ?>
                    <tr>
                        <td style="vertical-align: middle" class="text-center"><?= $no ?></td>
-                       <td style="vertical-align: middle" class="text-center"><?= $set['gejala'] ?></td>
+                       <td style="vertical-align: middle" class="text-center"><?= e($set['gejala']) ?></td>
                        <td style="vertical-align: middle" class="text-center">
                            <div class="btn-group-vertical" role="group" aria-label="...">
-                               <!-- <a href="" class="btn btn-warning btn-sm"><i class="fa fa-pencil-square-o"></i> Ubah</a> -->
-                               <a href="gejala-hapus.php?id=<?= $set['id_gejala'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('Yakin Hapus')"><i class="fa fa-times"></i> Hapus</a>
+                               <a href="gejala-hapus.php?id=<?= (int) $set['id_gejala'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('Yakin Hapus')"><i class="fa fa-times"></i> Hapus</a>
                            </div>
                        </td>
                    </tr>
@@ -50,7 +48,7 @@
 
    <!-- Modal -->
    <form action="" method="post" enctype="multipart/form-data">
-
+       <?= csrf_field() ?>
        <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
            <div class="modal-dialog" role="document">
                <div class="modal-content">
@@ -59,27 +57,36 @@
                        <h4 class="modal-title" id="myModalLabel">Tambah Gejala</h4>
                    </div>
                    <div class="modal-body">
-
-                       <script src="https://cdn.ckeditor.com/4.13.1/standard/ckeditor.js"></script>
                        <div class="form-group">
                            <label for="">Gejala</label>
-                           <input type="text" class="form-control" name="nama">
+                           <input type="text" class="form-control" name="nama" required maxlength="255">
                        </div>
-
                    </div>
                    <div class="modal-footer">
-                       <button class="btn btn-default" data-dismiss="modal">Close</button>
-                       <button class="btn btn-primary" name="simpan">Tambah</button>
+                       <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                       <button type="submit" class="btn btn-primary" name="simpan">Tambah</button>
                    </div>
                </div>
            </div>
        </div>
-
    </form>
 
    <?php
     if (isset($_POST['simpan'])) {
-       $nama = $_POST['nama'];
-       $koneksi->query("INSERT INTO gejala (gejala) VALUES ('$nama')");
-       echo "<script>alert('Data Berhasil Ditambahkan');location='index.php?page=gejala'</script>";
+       csrf_check();
+       $nama = trim((string) ($_POST['nama'] ?? ''));
+       if ($nama === '') {
+           echo "<script>alert('Gejala wajib diisi');location='index.php?page=gejala'</script>";
+       } else {
+           $stmt = $koneksi->prepare("INSERT INTO gejala (gejala) VALUES (?)");
+           $stmt->bind_param('s', $nama);
+           if ($stmt->execute()) {
+               $stmt->close();
+               echo "<script>alert('Data Berhasil Ditambahkan');location='index.php?page=gejala'</script>";
+           } else {
+               error_log('Tambah gejala gagal: ' . $stmt->error);
+               $stmt->close();
+               echo "<script>alert('Gagal menyimpan data');location='index.php?page=gejala'</script>";
+           }
+       }
     }

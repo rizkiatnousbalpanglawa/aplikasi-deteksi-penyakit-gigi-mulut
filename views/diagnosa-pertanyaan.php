@@ -7,18 +7,19 @@
             <h5>Bantu kami mengetahui apa yang anda alami!</h5><br>
 
             <form action="diagnosa-pertanyaan-hasil.php" method="post" enctype="multipart/form-data">
+                <?= csrf_field() ?>
 
-                <?php $get = $koneksi->query("SELECT * FROM gejala") ?>
+                <?php $get = $koneksi->query("SELECT id_gejala, gejala FROM gejala ORDER BY id_gejala ASC") ?>
                 <?php while ($set = $get->fetch_assoc()) : ?>
-                    <?php $id_pertanyaan = $set['id_gejala'] ?>
-                    <p class="text-center mb-0"><?= $set['gejala'] ?></p>
+                    <?php $id_pertanyaan = (int) $set['id_gejala']; ?>
+                    <p class="text-center mb-0"><?= e($set['gejala']) ?></p>
                     <div class="text-center">
                         <div class="form-check form-check-inline">
-                            <input class="form-check-input" type="radio" name="idpertanyaan<?= $id_pertanyaan ?>" id="inlineRadio1_<?= $id_pertanyaan ?>" value="<?= $set['id_gejala'] ?>" required>
+                            <input class="form-check-input" type="radio" name="idpertanyaan<?= $id_pertanyaan ?>" id="inlineRadio1_<?= $id_pertanyaan ?>" value="<?= $id_pertanyaan ?>" required>
                             <label class="form-check-label" for="inlineRadio1_<?= $id_pertanyaan ?>">Ya</label>
                         </div>
                         <div class="form-check form-check-inline">
-                            <input class="form-check-input" type="radio" name="idpertanyaan<?= $id_pertanyaan ?>" id="inlineRadio2_<?= $id_pertanyaan ?>" value="0">
+                            <input class="form-check-input" type="radio" name="idpertanyaan<?= $id_pertanyaan ?>" id="inlineRadio2_<?= $id_pertanyaan ?>" value="0" required>
                             <label class="form-check-label" for="inlineRadio2_<?= $id_pertanyaan ?>">Tidak</label>
                         </div>
                     </div>
@@ -26,12 +27,11 @@
                 <?php endwhile ?>
 
                 <div class="form-group">
-                    <button class="btn bg-biru btn-block rounded-0" name="simpan"><i class="fa fa-stethoscope"></i> SIMPAN</button>
-
+                    <button type="submit" class="btn bg-biru btn-block rounded-0" name="simpan"><i class="fa fa-stethoscope"></i> SIMPAN</button>
                 </div>
             </form>
         </div>
     </div>
-    
+
 </div>
 <br><br><br>

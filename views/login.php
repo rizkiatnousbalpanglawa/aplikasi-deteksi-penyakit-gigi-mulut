@@ -30,6 +30,7 @@
     <div class="container">
 
         <form action="login-act.php" method="post" enctype="multipart/form-data">
+            <?php require_once __DIR__ . '/../config/helpers.php'; start_secure_session(); echo csrf_field(); ?>
             <div class="form-group">
                 <input type="text" class="form-control rounded-0" name="nama" placeholder="username">
             </div>

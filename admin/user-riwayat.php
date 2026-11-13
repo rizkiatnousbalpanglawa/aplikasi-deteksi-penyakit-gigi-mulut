@@ -1,4 +1,4 @@
-   <?php $id = $_GET['id'] ?>
+   <?php $id = (int) ($_GET['id'] ?? 0); ?>
    <!-- Page Heading -->
    <div class="row">
        <div class="col-lg-12">
@@ -8,7 +8,6 @@
            <ol class="breadcrumb">
                <li class="active">
                    <i class="fa fa-th-list"></i> Riwayat Diagnosa
-
                </li>
            </ol>
        </div>
@@ -27,70 +26,25 @@
            </thead>
            <tbody>
                <?php $no = 1;
-                $get = $koneksi->query("SELECT * FROM hasil_pemeriksaan JOIN jenis_penyakit ON hasil_pemeriksaan.id_jenis_penyakit = jenis_penyakit.id_jenis_penyakit WHERE id_user = '$id'") ?>
+                $sql = 'SELECT hp.tanggal_pemeriksaan, jp.nama_penyakit, hp.presentase_hasil'
+                    . ' FROM hasil_pemeriksaan hp'
+                    . ' JOIN jenis_penyakit jp ON hp.id_jenis_penyakit = jp.id_jenis_penyakit'
+                    . ' WHERE hp.id_user = ?'
+                    . ' ORDER BY hp.tanggal_pemeriksaan DESC, hp.id_hasil_pemeriksaan DESC';
+                $stmtRiwayat = $koneksi->prepare($sql);
+                $stmtRiwayat->bind_param('i', $id);
+                $stmtRiwayat->execute();
+                $get = $stmtRiwayat->get_result(); ?>
                <?php while ($set = $get->fetch_assoc()) : ?>
                    <tr>
                        <td style="vertical-align: middle" class="text-center"><?= $no ?></td>
-                       <td style="vertical-align: middle" class="text-center"><?= date("d M Y",strtotime($set['tanggal_pemeriksaan'])) ?></td>
-                       <td style="vertical-align: middle" class="text-center"><?= $set['nama_penyakit'] ?></td>
-                       <td style="vertical-align: middle" class="text-center"><?= $set['presentase_hasil'] ?> %</td>
+                       <td style="vertical-align: middle" class="text-center"><?= e(date("d M Y", strtotime($set['tanggal_pemeriksaan']))) ?></td>
+                       <td style="vertical-align: middle" class="text-center"><?= e($set['nama_penyakit']) ?></td>
+                       <td style="vertical-align: middle" class="text-center"><?= e($set['presentase_hasil']) ?> %</td>
                    </tr>
                <?php $no++;
-                endwhile ?>
+                endwhile;
+                $stmtRiwayat->close(); ?>
            </tbody>
        </table>
    </div>
-
-
-   <!-- Button trigger modal -->
-
-
-   <!-- Modal -->
-   <form action="penyakit-tambah.php" method="post" enctype="multipart/form-data">
-
-       <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
-           <div class="modal-dialog" role="document">
-               <div class="modal-content">
-                   <div class="modal-header">
-                       <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                       <h4 class="modal-title" id="myModalLabel">Tambah Jenis Penyakit</h4>
-                   </div>
-                   <div class="modal-body">
-
-                       <script src="https://cdn.ckeditor.com/4.13.1/standard/ckeditor.js"></script>
-                       <div class="form-group">
-                           <label for="">Nama</label>
-                           <input type="text" class="form-control" name="nama">
-                       </div>
-                       <div class="form-group">
-                           <label for="">Defenisi</label>
-                           <textarea id="tek" rows="5" class="form-control" name="defenisi"></textarea>
-                           <!-- <script>
-                               CKEDITOR.replace('defenisi');
-                           </script> -->
-                       </div>
-                       <div class="form-group">
-                           <label for="">Penyebab</label>
-                           <textarea id="" rows="5" class="form-control" name="penyebab"></textarea>
-                           <!-- <script>
-                               CKEDITOR.replace('penyebab');
-                           </script> -->
-                       </div>
-                       <div class="form-group">
-                           <label for="">Penanganan</label>
-                           <textarea id="" rows="5" class="form-control" name="penanganan"></textarea>
-                          <!--  <script>
-                               CKEDITOR.replace('penanganan');
-                           </script> -->
-                       </div>
-
-                   </div>
-                   <div class="modal-footer">
-                       <button class="btn btn-default" data-dismiss="modal">Close</button>
-                       <button class="btn btn-primary" name="simpan">Tambah</button>
-                   </div>
-               </div>
-           </div>
-       </div>
-
-   </form>
