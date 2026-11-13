@@ -29,12 +29,13 @@
                <tr>
                    <th style="vertical-align: middle" class="text-center">No</th>
                    <th style="vertical-align: middle" class="text-center">Gejala</th>
+                   <th style="vertical-align: middle" class="text-center">Bobot CF (MB / MD)</th>
                    <th style="vertical-align: middle" class="text-center">Aksi</th>
                </tr>
            </thead>
            <tbody>
                <?php $no = 1;
-                $sql = 'SELECT pg.id_penyakit_gejala, g.gejala FROM jenis_penyakit jp'
+                $sql = 'SELECT pg.id_penyakit_gejala, g.gejala, pg.mb, pg.md FROM jenis_penyakit jp'
                     . ' JOIN penyakit_gejala pg ON jp.id_jenis_penyakit = pg.id_jenis_penyakit'
                     . ' JOIN gejala g ON pg.id_gejala = g.id_gejala'
                     . ' WHERE jp.id_jenis_penyakit = ? ORDER BY g.gejala ASC';
@@ -46,6 +47,16 @@
                    <tr>
                        <td style="vertical-align: middle" class="text-center"><?= $no ?></td>
                        <td style="vertical-align: middle" class="text-center"><?= e($set['gejala']) ?></td>
+                       <td style="vertical-align: middle" class="text-center">
+                           <form action="" method="post" class="form-inline justify-content-center">
+                               <?= csrf_field() ?>
+                               <input type="hidden" name="id_relasi" value="<?= (int)$set['id_penyakit_gejala'] ?>">
+                               <input type="number" name="mb" class="form-control input-sm" style="width:80px" min="0" max="1" step="0.01" value="<?= e(isset($set['mb']) ? $set['mb'] : '') ?>" required title="Measure of Belief (0-1)">
+                               <input type="number" name="md" class="form-control input-sm" style="width:80px" min="0" max="1" step="0.01" value="<?= e(isset($set['md']) ? $set['md'] : '') ?>" required title="Measure of Disbelief (0-1)">
+                               <button type="submit" class="btn btn-warning btn-sm" name="ubah_bobot" title="Simpan bobot"><i class="fa fa-save"></i></button>
+                           </form>
+                           <small>CF: <?= e(number_format((float)(isset($set['mb']) ? $set['mb'] : 0) - (float)(isset($set['md']) ? $set['md'] : 0), 2)) ?></small>
+                       </td>
                        <td style="vertical-align: middle" class="text-center">
                            <div class="btn-group-vertical" role="group" aria-label="...">
                                <a href="penyakit-detail-hapus.php?id=<?= (int)$set['id_penyakit_gejala'] ?>&idp=<?= (int)$id ?>" class="btn btn-danger btn-sm" onclick="return confirm('Yakin Hapus')"><i class="fa fa-times"></i> Hapus</a>
@@ -71,7 +82,15 @@
                    </div>
                    <div class="modal-body">
                        <div class="form-group">
-                           <label for="">Gejala</label>
+                           <label for="">MB - Measure of Belief (0-1)</label>
+                           <input type="number" name="mb" class="form-control" min="0" max="1" step="0.01" value="0.80" required>
+                       </div>
+                       <div class="form-group">
+                           <label for="">MD - Measure of Disbelief (0-1)</label>
+                           <input type="number" name="md" class="form-control" min="0" max="1" step="0.01" value="0.20" required>
+                       </div>
+                        <div class="form-group">
+                            <label for="">Gejala</label>
                            <select name="gejala" class="form-control" required>
                                <?php $getgejala = $koneksi->query(
                                     'SELECT id_gejala, gejala FROM gejala ORDER BY gejala ASC'
@@ -92,10 +111,36 @@
    </form>
 
    <?php
+    if (isset($_POST['ubah_bobot'])) {
+        csrf_check();
+        $id_relasi = (int)($_POST['id_relasi'] ?? 0);
+        $mb = isset($_POST['mb']) ? (float)$_POST['mb'] : -1.0;
+        $md = isset($_POST['md']) ? (float)$_POST['md'] : -1.0;
+        if ($id <= 0 || $id_relasi <= 0 || $mb < 0.0 || $mb > 1.0 || $md < 0.0 || $md > 1.0) {
+            redirect_js('index.php?page=penyakit-detail&id=' . (int)$id, 'Bobot tidak valid (isi 0-1)', 'warning');
+        } else {
+            $upd = $koneksi->prepare(
+                'UPDATE penyakit_gejala SET mb = ?, md = ?'
+                . ' WHERE id_penyakit_gejala = ? AND id_jenis_penyakit = ?'
+            );
+            $upd->bind_param('ddii', $mb, $md, $id_relasi, $id);
+            if ($upd->execute()) {
+                $upd->close();
+                redirect_js('index.php?page=penyakit-detail&id=' . (int)$id, 'Bobot berhasil diubah', 'success');
+            } else {
+                error_log('Ubah bobot gagal: ' . $upd->error);
+                $upd->close();
+                redirect_js('index.php?page=penyakit-detail&id=' . (int)$id, 'Gagal mengubah bobot', 'danger');
+            }
+        }
+    }
+
     if (isset($_POST['simpan'])) {
         csrf_check();
         $id_gejala = (int)($_POST['gejala'] ?? 0);
-        if ($id <= 0 || $id_gejala <= 0) {
+        $mb = isset($_POST['mb']) ? (float)$_POST['mb'] : -1.0;
+        $md = isset($_POST['md']) ? (float)$_POST['md'] : -1.0;
+        if ($id <= 0 || $id_gejala <= 0 || $mb < 0.0 || $mb > 1.0 || $md < 0.0 || $md > 1.0) {
             redirect_js('index.php?page=penyakit-detail&id=' . (int)$id, 'Relasi tidak valid', 'warning');
         } else {
             $cek = $koneksi->prepare(
@@ -110,8 +155,10 @@
                 redirect_js('index.php?page=penyakit-detail&id=' . (int)$id, 'Relasi sudah ada', 'warning');
             } else {
                 $cek->close();
-                $ins = $koneksi->prepare("INSERT INTO penyakit_gejala (id_jenis_penyakit, id_gejala) VALUES (?, ?)");
-                $ins->bind_param('ii', $id, $id_gejala);
+                $ins = $koneksi->prepare(
+                    'INSERT INTO penyakit_gejala (id_jenis_penyakit, id_gejala, mb, md) VALUES (?, ?, ?, ?)'
+                );
+                $ins->bind_param('iidd', $id, $id_gejala, $mb, $md);
                 if ($ins->execute()) {
                     $ins->close();
                     redirect_js('index.php?page=penyakit-detail&id=' . (int)$id, 'Data Berhasil Ditambahkan', 'success');

@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../config/bootstrap.php';
+require_once __DIR__ . '/../lib/cf.php';
 require_user();
 
 if (!isset($_POST['simpan'])) {
@@ -69,11 +70,18 @@ try {
     $getNama->close();
     $insSementara->close();
 
-    // Cocokkan setiap gejala ke penyakit.
-    $getPenyakit = $koneksi->prepare("SELECT id_jenis_penyakit FROM penyakit_gejala WHERE id_gejala = ?");
+    // Cocokkan setiap gejala ke penyakit beserta bobot pakarnya.
+    // Hanya relasi milik penyakit terdaftar (JOIN master) yang dipakai.
+    $getPenyakit = $koneksi->prepare(
+        'SELECT pg.id_jenis_penyakit, pg.mb, pg.md FROM penyakit_gejala pg'
+        . ' JOIN jenis_penyakit jp ON jp.id_jenis_penyakit = pg.id_jenis_penyakit'
+        . ' WHERE pg.id_gejala = ?'
+    );
     $insSementara2 = $koneksi->prepare(
         'INSERT INTO hasil_sementara (id_user, id_jenis_penyakit, id_gejala) VALUES (?, ?, ?)'
     );
+    // Kumpulkan CF tiap relasi yang cocok, dikelompokkan per penyakit.
+    $cfPerPenyakit = [];
     foreach ($dipilih as $id_gejala) {
         $getPenyakit->bind_param('i', $id_gejala);
         $getPenyakit->execute();
@@ -82,22 +90,20 @@ try {
             $id_penyakit = (int)$rowP['id_jenis_penyakit'];
             $insSementara2->bind_param('iii', $id_user, $id_penyakit, $id_gejala);
             $insSementara2->execute();
+
+            $mb = isset($rowP['mb']) ? (float)$rowP['mb'] : 0.0;
+            $md = isset($rowP['md']) ? (float)$rowP['md'] : 0.0;
+            if (!isset($cfPerPenyakit[$id_penyakit])) {
+                $cfPerPenyakit[$id_penyakit] = [];
+            }
+            $cfPerPenyakit[$id_penyakit][] = $mb - $md;
         }
     }
     $getPenyakit->close();
     $insSementara2->close();
 
-    // Hitung kecocokan per penyakit. Hanya penyakit yang terdaftar di master
-    // (JOIN ke jenis_penyakit) agar hasil selalu punya definisi/penanganan.
-    $getCocok = $koneksi->prepare(
-        'SELECT hs.id_jenis_penyakit, COUNT(*) AS jumlah FROM hasil_sementara hs'
-        . ' JOIN jenis_penyakit jp ON jp.id_jenis_penyakit = hs.id_jenis_penyakit'
-        . ' WHERE hs.id_user = ? GROUP BY hs.id_jenis_penyakit ORDER BY COUNT(*) DESC'
-    );
-    $getCocok->bind_param('i', $id_user);
-    $getCocok->execute();
-    $rc = $getCocok->get_result();
-
+    // Gabungkan CF tiap penyakit. Kolom jumlah_gejala/total_gejala tetap
+    // disimpan sebagai info pendukung; skor utama = presentase dari CF.
     $insKemungkinan = $koneksi->prepare(
         'INSERT INTO hasil_kemungkinan'
         . ' (id_user, id_jenis_penyakit, jumlah_gejala, total_gejala, presentase)'
@@ -105,21 +111,20 @@ try {
     );
     $getTotal = $koneksi->prepare("SELECT COUNT(*) AS total_gejala FROM penyakit_gejala WHERE id_jenis_penyakit = ?");
     $adaCocok = false;
-    while ($rowC = $rc->fetch_assoc()) {
+    foreach ($cfPerPenyakit as $id_cocok => $cfs) {
         $adaCocok = true;
-        $id_cocok = (int)$rowC['id_jenis_penyakit'];
-        $jumlah = (int)$rowC['jumlah'];
+        $jumlah = count($cfs);
+        $cf = cf_kombinasi($cfs);
 
         $getTotal->bind_param('i', $id_cocok);
         $getTotal->execute();
         $rt = $getTotal->get_result()->fetch_assoc();
         $total = max(1, (int)($rt['total_gejala'] ?? 1));
-        $presentase = round(($jumlah / $total) * 100, 1);
+        $presentase = round($cf * 100, 1);
 
         $insKemungkinan->bind_param('iiiid', $id_user, $id_cocok, $jumlah, $total, $presentase);
         $insKemungkinan->execute();
     }
-    $getCocok->close();
     $insKemungkinan->close();
     $getTotal->close();
 

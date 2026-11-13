@@ -1,8 +1,9 @@
 # Aplikasi Deteksi Penyakit Gigi & Mulut
 
-Aplikasi diagnosa sederhana berbasis gejala (PHP native + MySQL/MariaDB + Bootstrap 4).
-User menjawab Ya/Tidak untuk tiap gejala, sistem menghitung kecocokan per penyakit
-(`jumlah_gejala_cocok / total_gejala_penyakit × 100`) dan menyimpan hasil pemeriksaan.
+Aplikasi diagnosa berbasis gejala (PHP native + MySQL/MariaDB + Bootstrap 4)
+dengan metode **Certainty Factor (CF)**. User menjawab Ya/Tidak untuk tiap gejala,
+sistem menggabung bobot pakar (MB/MD) tiap relasi penyakit–gejala lalu menyimpan
+hasil pemeriksaan.
 
 ## Fitur
 
@@ -75,6 +76,30 @@ Perbaikan yang sudah diterapkan:
   data bawaan lama mengandung id yang tidak ada di master (lihat catatan di SQL).
   Rapikan master via panel admin sebelum mengaktifkan FK tersebut.
 
+## Metode Certainty Factor
+
+Tiap relasi penyakit–gejala punya bobot pakar **MB** (measure of belief) dan
+**MD** (measure of disbelief), rentang 0–1, dikelola di admin
+(Jenis Penyakit > Detail). Nilai CF per relasi = `MB − MD`.
+
+Jawaban Ya digabung sekuensial per penyakit (`lib/cf.php`):
+
+- Keduanya positif: `CF = CF1 + CF2 × (1 − CF1)`
+- Keduanya negatif: `CF = CF1 + CF2 × (1 + CF1)`
+- Beda tanda: `CF = (CF1 + CF2) / (1 − min(|CF1|, |CF2|))`
+
+Skor akhir = `CF × 100%`, pemenang = nilai tertinggi (seri → jumlah gejala
+terbanyak → id terkecil). Hanya penyakit terdaftar di master yang dihitung.
+
+Contoh hitungan tangan (bobot contoh MB 0,8 / MD 0,2 → CF 0,6 per gejala):
+gejala [Gigi Berlubang, Gigi Ngilu, nyeri panas/dingin] pada Erosi Gigi:
+`0,6 → 0,6+0,6×0,4=0,84 → 0,84+0,6×0,16=0,936` = **93,6%**.
+
+> Bobot bawaan (`0,80/0,20`) adalah **contoh** agar aplikasi langsung jalan.
+> Ganti dengan nilai hasil konsultasi pakar sebelum dipakai produksi.
+> Riwayat lama (era metode proporsi) tetap terbaca; skornya tidak sebanding
+> langsung dengan skor CF.
+
 ## Bug logika yang diperbaiki
 
 - **Mapping jawaban geser** (`diagnosa-pertanyaan-hasil.php` lama pakai counter
@@ -95,6 +120,11 @@ Perbaikan yang sudah diterapkan:
   `ORDER BY presentase DESC, jumlah DESC, id ASC LIMIT 1` (dulu `MAX()` tanpa
   grup yang hasilnya tak-menentu), dan kegagalan `INSERT` hasil kini melempar
   error eksplisit + rollback, bukan redirect diam-diam ke `id=0`.
+- **Migrasi ke CF**: `database/migrations/002_cf_bobot.sql` menambah `mb`/`md`
+  (jalankan sekali di DB lama; skema baru di `gigi_mulut.sql` sudah memuatnya).
+  Perhitungan di `views/diagnosa-pertanyaan-hasil.php` memakai fungsi murni
+  `lib/cf.php`; admin kelola bobot di Jenis Penyakit > Detail (kolom MB/MD/CF,
+  tambah relasi wajib isi bobot).
 
 ## Verifikasi
 
@@ -146,8 +176,10 @@ Pengecualian yang disengaja:
 
 ## Batasan / TODO
 
-- Rumus masih proporsi sederhana, belum bobot/CF; hasil seri (mis. tiga penyakit 66,7%)
-  diambil salah satu — pertimbangkan skor lanjutan atau tampilkan kandidat teratas.
+- Seri skor CF diselesaikan deterministik (id terkecil) — pertimbangkan tampilkan
+  kandidat teratas bila butuh transparansi diagnosis banding.
+- Bobot bawaan MB 0,8/MD 0,2 adalah contoh — wajib divalidasi pakar
+  (dokter gigi/dosen pembimbing) sebelum produksi.
 - Master data bawaan belum konsisten (id penyakit/gejala yatim) — rapikan via admin,
   lalu aktifkan FK `penyakit_gejala`.
 - Belum ada rate-limit login, reset password, audit log, dan pagination server-side.
