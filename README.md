@@ -8,8 +8,9 @@ hasil pemeriksaan.
 ## Fitur
 
 - **User**: register/login, konsultasi diagnosa, riwayat hasil, edit akun.
-- **Admin**: login terpisah, kelola jenis penyakit, relasi penyakit–gejala, kelola gejala,
-  lihat daftar user + riwayat diagnosanya.
+- **Admin**: login terpisah, kelola jenis penyakit, relasi penyakit–gejala
+  **beserta bobot CF (MB/MD)**, kelola gejala, lihat daftar user + riwayat
+  diagnosanya.
 
 ## Struktur
 
@@ -18,7 +19,9 @@ admin/    Panel admin (guard session admin + CSRF + prepared statements)
 assets/   CSS/JS lokal (SB Admin, Font Awesome)
 config/   bootstrap.php (entry-point tunggal), koneksi.php (env-based),
           helpers.php (session/CSRF/escaping/guard/flash/redirect)
-database/ gigi_mulut.sql (skema bersih + seed master, tanpa PII)
+database/ gigi_mulut.sql (skema bersih + seed master, tanpa PII),
+          migrations/ (migrasi versioned, mis. 002_cf_bobot.sql)
+lib/      cf.php (fungsi murni Certainty Factor, tanpa I/O)
 login/    Login admin
 views/    Aplikasi user (diagnosa, riwayat, akun) + views/layout/ (header/footer)
 index.php Redirect ke admin/
@@ -30,17 +33,24 @@ index.php Redirect ke admin/
    ```sql
    CREATE DATABASE gigi_mulut CHARACTER SET utf8mb4;
    ```
-2. Import skema + data master:
+2. Import skema + data master (instalasi baru):
    ```bash
    mysql -u usbal gigi_mulut < database/gigi_mulut.sql
    ```
-   (Tanpa data pasien/hasil — hanya master gejala, penyakit, relasi, dan 1 akun admin.)
+   (Tanpa data pasien/hasil — hanya master gejala, penyakit, relasi berbobot,
+   dan 1 akun admin.)
+2b. Migrasi database lama (kalau DB sudah ada sebelum update CF):
+   ```bash
+   mysql -u usbal gigi_mulut < database/migrations/002_cf_bobot.sql
+   ```
+   Tanpa ini diagnosa gagal dengan pesan "Diagnosa gagal diproses"
+   (kolom `mb`/`md` belum ada).
 3. Atur kredensial via environment (jangan hardcode):
    ```bash
    export DB_HOST=localhost DB_USER=usbal DB_PASS= DB_NAME=gigi_mulut
    ```
    Lihat `.env.example`. Default kode mengikuti kredensial dev lama (`usbal`/kosong).
-4. Jalankan via web server (Apache/Nginx + PHP 8 + mysqli), misal docroot ke repo ini.
+4. Jalankan via web server (Apache/Nginx + PHP 7.4+ / 8.x + mysqli), misal docroot ke repo ini.
    - User: `http://localhost/views/login.php`
    - Admin: `http://localhost/login/`
 
@@ -128,11 +138,24 @@ gejala [Gigi Berlubang, Gigi Ngilu, nyeri panas/dingin] pada Erosi Gigi:
 
 ## Verifikasi
 
-- `php -l` lolos untuk 33 file PHP.
-- Import skema bersih ke `gigi_mulut_test`: 38 gejala, 5 penyakit, 69 relasi, admin hash `$2y$12$…`.
-- Simulasi diagnosa gejala `[6, 11]`: distribusi kecocokan terhitung benar
-  (mis. penyakit 1: 2/3 = 66,7%).
-- Register → password tersimpan sebagai bcrypt (60 char), login `password_verify` OK.
+- `php -l` lolos untuk 36 file PHP.
+- Import skema bersih: 38 gejala, 5 penyakit, 69 relasi (semua berbobot MB/MD),
+  admin hash `$2y$12$…`.
+- Fungsi CF (`lib/cf.php`) lolos 6 kasus hitungan tangan:
+  `[0,7, 0,6]→0,88`, `[0,6 ×3]→0,936`, kasus negatif, beda tanda, dan kosong.
+- E2E via HTTP: gejala [Gigi Berlubang, Gigi Ngilu, nyeri panas/dingin] →
+  Erosi Gigi **93,6%**; setelah bobot relasi Erosi–Gigi Berlubang diubah ke
+  MB 1,0/MD 0,0 → **100%** (bobot admin terbukti memengaruhi hasil).
+- Bobot invalid (MB 2) ditolak dengan pesan, DB tidak berubah.
+- Register → password tersimpan sebagai bcrypt (60 char), login `password_verify` OK;
+  injeksi `' OR '1'='1` diperlakukan sebagai literal (0 baris).
+
+## Troubleshooting
+
+- **"Diagnosa gagal diproses"** → penyebab detail tercatat di PHP error log
+  (`Diagnosa gagal: ...`; kalau pakai `php -S`, lihat terminalnya). Penyebab
+  umum: migrasi `002_cf_bobot.sql` belum dijalankan di DB lama — lihat
+  Instalasi langkah 2b.
 
 ## Arsitektur (Fase 1 maintainability)
 
