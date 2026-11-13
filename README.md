@@ -7,10 +7,11 @@ hasil pemeriksaan.
 
 ## Fitur
 
-- **User**: register/login, konsultasi diagnosa, riwayat hasil, edit akun.
-- **Admin**: login terpisah, kelola jenis penyakit, relasi penyakit–gejala
-  **beserta bobot CF (MB/MD)**, kelola gejala, lihat daftar user + riwayat
-  diagnosanya.
+- **User**: register/login (rate-limit 5x/10 mnt), konsultasi diagnosa CF +
+  diagnosis banding, riwayat hasil (10/halaman), edit akun.
+- **Admin**: login terpisah (rate-limit), kelola jenis penyakit, relasi penyakit–gejala
+  beserta bobot CF (MB/MD) + peringatan bobot contoh, kelola gejala, kelola user
+  (riwayat + reset sandi), audit log.
 
 ## Struktur
 
@@ -20,7 +21,7 @@ assets/   CSS/JS lokal (SB Admin, Font Awesome)
 config/   bootstrap.php (entry-point tunggal), koneksi.php (env-based),
           helpers.php (session/CSRF/escaping/guard/flash/redirect)
 database/ gigi_mulut.sql (skema bersih + seed master, tanpa PII),
-          migrations/ (migrasi versioned, mis. 002_cf_bobot.sql)
+          migrations/ (002_cf_bobot, 003_kandidat, 004_master_fk, 005_keamanan)
 lib/      cf.php (fungsi murni Certainty Factor, tanpa I/O)
 login/    Login admin
 views/    Aplikasi user (diagnosa, riwayat, akun) + views/layout/ (header/footer)
@@ -39,12 +40,15 @@ index.php Redirect ke admin/
    ```
    (Tanpa data pasien/hasil — hanya master gejala, penyakit, relasi berbobot,
    dan 1 akun admin.)
-2b. Migrasi database lama (kalau DB sudah ada sebelum update CF):
+2b. Migrasi database lama (jalankan berurutan sesuai versi DB):
    ```bash
    mysql -u usbal gigi_mulut < database/migrations/002_cf_bobot.sql
+   mysql -u usbal gigi_mulut < database/migrations/003_kandidat_banding.sql
+   mysql -u usbal gigi_mulut < database/migrations/004_master_fk.sql
+   mysql -u usbal gigi_mulut < database/migrations/005_keamanan.sql
    ```
-   Tanpa ini diagnosa gagal dengan pesan "Diagnosa gagal diproses"
-   (kolom `mb`/`md` belum ada).
+   Tanpa migrasi yang sesuai, fitur terkait gagal (mis. diagnosa tanpa `002`
+   menampilkan "Diagnosa gagal diproses").
 3. Atur kredensial via environment (jangan hardcode):
    ```bash
    export DB_HOST=localhost DB_USER=usbal DB_PASS= DB_NAME=gigi_mulut
@@ -81,10 +85,9 @@ Perbaikan yang sudah diterapkan:
   (`koneksi.php.bak-root`) dan `.DS_Store` dihapus; dump DB dibersihkan dari
   data pasien asli; seed hanya master + 1 admin.
 - **DB**: `UNIQUE` di `user.nama` dan `penyakit_gejala(id_jenis_penyakit,id_gejala)`,
-  FK `ON DELETE CASCADE` untuk data milik user, index untuk kolom join.
-  Pengecualian: FK `penyakit_gejala → master` **sengaja tidak dipasang** karena
-  data bawaan lama mengandung id yang tidak ada di master (lihat catatan di SQL).
-  Rapikan master via panel admin sebelum mengaktifkan FK tersebut.
+  FK `ON DELETE CASCADE` untuk data milik user dan relasi penyakit–gejala,
+  index untuk kolom join. Relasi yatim sudah dibuang (migrasi `004`) sehingga
+  FK `penyakit_gejala → master` aktif dua arah.
 
 ## Metode Certainty Factor
 
@@ -138,15 +141,19 @@ gejala [Gigi Berlubang, Gigi Ngilu, nyeri panas/dingin] pada Erosi Gigi:
 
 ## Verifikasi
 
-- `php -l` lolos untuk 36 file PHP.
-- Import skema bersih: 38 gejala, 5 penyakit, 69 relasi (semua berbobot MB/MD),
-  admin hash `$2y$12$…`.
+- `php -l` lolos untuk 38 file PHP.
+- Import skema bersih: 40 gejala, 5 penyakit, 17 relasi berbobot (yatim dibuang,
+  FK aktif), + tabel `login_upaya`/`audit_log`; admin hash `$2y$12$…`.
+  Jalur migrasi skema lama → `002`–`005` berurutan juga lolos.
 - Fungsi CF (`lib/cf.php`) lolos 6 kasus hitungan tangan:
   `[0,7, 0,6]→0,88`, `[0,6 ×3]→0,936`, kasus negatif, beda tanda, dan kosong.
 - E2E via HTTP: gejala [Gigi Berlubang, Gigi Ngilu, nyeri panas/dingin] →
-  Erosi Gigi **93,6%**; setelah bobot relasi Erosi–Gigi Berlubang diubah ke
-  MB 1,0/MD 0,0 → **100%** (bobot admin terbukti memengaruhi hasil).
+  Erosi Gigi **93,6%** + banding Karies (93,6%) & Pulpitis (84%); setelah bobot
+  relasi Erosi–Gigi Berlubang diubah ke MB 1,0/MD 0,0 → **100%** (bobot admin
+  terbukti memengaruhi hasil).
 - Bobot invalid (MB 2) ditolak dengan pesan, DB tidak berubah.
+- Rate-limit: 6x sandi salah → diblokir 10 menit, upaya diblokir tak tercatat
+  ganda; reset sandi admin bisa dipakai login; audit mencatat login/diagnosa/CRUD.
 - Register → password tersimpan sebagai bcrypt (60 char), login `password_verify` OK;
   injeksi `' OR '1'='1` diperlakukan sebagai literal (0 baris).
 
@@ -169,6 +176,26 @@ gejala [Gigi Berlubang, Gigi Ngilu, nyeri panas/dingin] pada Erosi Gigi:
   berjalan sebelum output, atau `redirect_js(...)` bila di dalam fragment yang
   sudah terlanjur output (form admin). Pesan tampil sekali via `flash_html()`
   yang sudah dipasang di layout. Jangan tambah `alert()` JS baru.
+
+## Selesai dari daftar TODO
+
+- **Diagnosis banding**: hasil menyimpan 3 kandidat teratas (`kandidat2/3_id+skor`,
+  migrasi `003`), halaman hasil menampilkan "Diagnosis banding" + anjuran
+  konsultasi dokter. Seri tetap deterministik (skor → jumlah → id).
+- **Master yatim + FK**: gejala id 1–2 dikembalikan dari data legacy, 52 relasi
+  berpenyakit tak-terdaftar dibuang (migrasi `004`), FK `penyakit_gejala` aktif
+  dua arah (`ON DELETE CASCADE`).
+- **Rate-limit login**: maks 5x gagal per 10 menit per username+IP (`login_upaya`,
+  migrasi `005`), fail-open bila tabel belum ada, upaya sukses menghapus catatan.
+- **Reset sandi**: tombol Reset Sandi di Daftar User (admin) membuat sandi acak
+  8 karakter, ditampilkan sekali via flash + tercatat di audit.
+- **Audit log**: tabel `audit_log` + helper `audit()` mencatat login/logout
+  (berhasil, gagal, diblokir), register, ubah akun, diagnosa, hapus riwayat,
+  dan semua aksi CRUD admin; bisa dilihat di Admin > Audit Log (200 terbaru).
+- **Pagination**: riwayat user 10 per halaman (`?hal=`).
+- **CDN**: Bootstrap 4.6.2, jQuery 3.7.1, Popper 1.16.1, DataTables 1.13.8 —
+  semua dengan SRI; duplikat jQuery 2.1.1 dibuang; handler preloader
+  `$(window).load` (dihapus di jQuery 3) diganti `.on('load')`.
 
 ## Gaya kode (PSR-12 + PER Coding Style)
 
@@ -197,14 +224,16 @@ Pengecualian yang disengaja:
 - File template campuran HTML+PHP memakai sintaks alternatif (`while: … endwhile;`)
   yang diizinkan PER untuk template.
 
-## Batasan / TODO
+## Batasan / TODO berikutnya
 
-- Seri skor CF diselesaikan deterministik (id terkecil) — pertimbangkan tampilkan
-  kandidat teratas bila butuh transparansi diagnosis banding.
 - Bobot bawaan MB 0,8/MD 0,2 adalah contoh — wajib divalidasi pakar
-  (dokter gigi/dosen pembimbing) sebelum produksi.
-- Master data bawaan belum konsisten (id penyakit/gejala yatim) — rapikan via admin,
-  lalu aktifkan FK `penyakit_gejala`.
-- Belum ada rate-limit login, reset password, audit log, dan pagination server-side.
-- Dependensi CDN (Bootstrap 4.4.1, jQuery, DataTables 1.10.20) sudah tua —
-  upgrade terjadwal; CKEditor 4 yang EOL sudah dibuang dari form.
+  (dokter gigi/dosen pembimbing) sebelum produksi. Panel admin menampilkan
+  peringatan tiap penyakit yang masih memakai bobot contoh.
+- Penyakit tanpa master (id yatim) sudah dibuang dari relasi agar FK aktif;
+  bila data aslinya ditemukan, masukkan ulang via panel admin.
+- Reset sandi mandiri via email belum ada (butuh layanan SMTP) — untuk sekarang
+  admin meresetkan lewat tombol Reset Sandi di Daftar User.
+- Dependensi tema login (`login/vendor`, jQuery 3.2.1 + plugin lama) masih
+  versi lama — sengaja tidak diutak-atik karena berisiko merusak tema;
+  yang diupgrade: Bootstrap 4.6.2, jQuery 3.7.1, Popper 1.16.1,
+  DataTables 1.13.8 (semua + SRI).

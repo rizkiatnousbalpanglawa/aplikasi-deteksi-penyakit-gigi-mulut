@@ -114,6 +114,83 @@ if (!function_exists('flash_html')) {
     }
 }
 
+if (!function_exists('rate_kunci')) {
+    function rate_kunci(string $nama): string
+    {
+        $ip = isset($_SERVER['REMOTE_ADDR']) ? (string) $_SERVER['REMOTE_ADDR'] : 'cli';
+        return 'login:' . mb_strtolower(trim($nama)) . '|' . $ip;
+    }
+}
+
+if (!function_exists('rate_izinkan')) {
+    // Rate-limit login: maksimal 5x gagal per 10 menit per kunci.
+    // Fail-open (true) bila tabel login_upaya belum ada (DB lama).
+    function rate_izinkan($koneksi, string $kunci): bool
+    {
+        $batas = date('Y-m-d H:i:s', time() - 600);
+        $stmt = $koneksi->prepare(
+            'SELECT COUNT(*) AS c FROM login_upaya WHERE kunci = ? AND berhasil = 0 AND waktu > ?'
+        );
+        if (!$stmt) {
+            return true;
+        }
+        $stmt->bind_param('ss', $kunci, $batas);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        return ((int)($row['c'] ?? 0)) < 5;
+    }
+}
+
+if (!function_exists('rate_catat')) {
+    function rate_catat($koneksi, string $kunci, bool $ok): void
+    {
+        if ($ok) {
+            $del = $koneksi->prepare('DELETE FROM login_upaya WHERE kunci = ?');
+            if ($del) {
+                $del->bind_param('s', $kunci);
+                $del->execute();
+                $del->close();
+            }
+            return;
+        }
+        $ins = $koneksi->prepare('INSERT INTO login_upaya (kunci, berhasil) VALUES (?, 0)');
+        if ($ins) {
+            $ins->bind_param('s', $kunci);
+            $ins->execute();
+            $ins->close();
+        }
+        $koneksi->query("DELETE FROM login_upaya WHERE waktu < DATE_SUB(NOW(), INTERVAL 1 DAY)");
+    }
+}
+
+if (!function_exists('audit')) {
+    // Catat aktivitas ke audit_log. Aktor dibaca dari session (admin/user).
+    // Diam bila tabel belum ada (DB lama tanpa migrasi 005).
+    function audit($koneksi, string $aksi, string $detail = ''): void
+    {
+        $aktor = '-';
+        $peran = '-';
+        if (!empty($_SESSION['admin']['user'])) {
+            $aktor = (string) $_SESSION['admin']['user'];
+            $peran = 'admin';
+        } elseif (!empty($_SESSION['nama'])) {
+            $aktor = (string) $_SESSION['nama'];
+            $peran = 'user';
+        }
+        $ip = isset($_SERVER['REMOTE_ADDR']) ? (string) $_SERVER['REMOTE_ADDR'] : null;
+        $stmt = $koneksi->prepare(
+            'INSERT INTO audit_log (aktor, peran, aksi, detail, ip) VALUES (?, ?, ?, ?, ?)'
+        );
+        if (!$stmt) {
+            return;
+        }
+        $stmt->bind_param('sssss', $aktor, $peran, $aksi, $detail, $ip);
+        $stmt->execute();
+        $stmt->close();
+    }
+}
+
 if (!function_exists('redirect')) {
     // Redirect via header. Hanya untuk handler yang berjalan SEBELUM output dimulai.
     function redirect(string $url, $message = null, string $type = 'success'): void

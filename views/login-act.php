@@ -11,6 +11,12 @@ if (isset($_POST['login'])) {
         redirect('login.php', 'Nama dan kata sandi wajib diisi', 'warning');
     }
 
+    $kunci = rate_kunci($nama);
+    if (!rate_izinkan($koneksi, $kunci)) {
+        audit($koneksi, 'login_user_diblokir', $nama);
+        redirect('login.php', 'Terlalu banyak percobaan gagal. Coba lagi 10 menit.', 'danger');
+    }
+
     $stmt = $koneksi->prepare("SELECT id_user, nama, kata_sandi FROM user WHERE nama = ? LIMIT 1");
     $stmt->bind_param('s', $nama);
     $stmt->execute();
@@ -42,12 +48,17 @@ if (isset($_POST['login'])) {
         }
 
         if ($ok) {
+            rate_catat($koneksi, $kunci, true);
             session_regenerate_id(true);
             $_SESSION['nama'] = $set['nama'];
             $_SESSION['id'] = (int)$set['id_user'];
             $stmt->close();
+            audit($koneksi, 'login_user', $set['nama']);
             redirect('index.php');
         }
+
+        rate_catat($koneksi, $kunci, false);
+        audit($koneksi, 'login_user_gagal', $nama);
     }
 
     $stmt->close();

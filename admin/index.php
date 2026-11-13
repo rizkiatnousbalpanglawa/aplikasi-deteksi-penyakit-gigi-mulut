@@ -29,7 +29,7 @@ require_admin();
     <link href="../assets/font-awesome/css/font-awesome.min.css" rel="stylesheet" type="text/css">
 
     <!-- Datatable -->
-    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.20/css/dataTables.bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap4.min.css" integrity="sha512-6rbls2nPJSSbw9NX6cASbL3asbcHJCN1Qw6lRbXhOQSVOGn0WkO2lcFgJQpwIN2Nf7/OieSYae85gZmLzOKILg==" crossorigin="anonymous">
 
 </head>
 
@@ -66,6 +66,7 @@ require_admin();
                     <li><a href="index.php?page=user"><i class="fa fa-fw fa-user"></i> Daftar User</a></li>
                     <li><a href="index.php?page=penyakit"><i class="fa fa-fw fa-th-list"></i> Jenis Penyakit</a></li>
                     <li><a href="index.php?page=gejala"><i class="fa fa-fw fa-th-list"></i> Gejala Penyakit</a></li>
+                    <li><a href="index.php?page=audit"><i class="fa fa-fw fa-list"></i> Audit Log</a></li>
                 </ul>
             </div>
             <!-- /.navbar-collapse -->
@@ -98,6 +99,9 @@ require_admin();
                         case 'gejala':
                             include "gejala.php";
                             break;
+                        case 'audit':
+                            include "audit.php";
+                            break;
                         case 'user-riwayat':
                             include "user-riwayat.php";
                             break;
@@ -126,10 +130,9 @@ require_admin();
     <script src="../assets/js/bootstrap.min.js"></script>
 
     <!-- datatable -->
-    <!--  <script type="text/javascript" charset="utf8" src="css/jquery.dataTables.min.js"></script> -->
-    <script type="text/javascript" charset="utf8" src="https://code.jquery.com/jquery-3.3.1.js"></script>
-    <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.10.20/js/jquery.dataTables.min.js"></script>
-    <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.10.20/js/dataTables.bootstrap4.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js" integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g==" crossorigin="anonymous"></script>
+    <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js" integrity="sha512-TgxkAWzvZ5QHj09nGCAHIq2ynLQT1hSgJQZK25wWQwReBLNWEtMU5BqoaQiYPrjaB3OfPuCfVDQ7n2csnDR+SQ==" crossorigin="anonymous"></script>
+    <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap4.min.js" integrity="sha512-3PX08k+82yrxvFFhogTChHNx3ngdWY/TJTHJ4XWlO71HRSKp5u5PPQpVnyinro54tzR8eVjhiy3FqXU89LNERA==" crossorigin="anonymous"></script>
 
     <script>
         $(document).ready(function() {

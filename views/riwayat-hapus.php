@@ -14,4 +14,5 @@ $stmt->bind_param('ii', $id, $id_user);
 $stmt->execute();
 $stmt->close();
 
+audit($koneksi, 'hapus_riwayat', 'id=' . $id);
 redirect('index.php?page=riwayat', 'Riwayat dihapus', 'success');

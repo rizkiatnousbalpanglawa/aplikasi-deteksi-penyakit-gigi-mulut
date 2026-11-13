@@ -13,4 +13,5 @@ $stmt->bind_param('i', $id);
 $stmt->execute();
 $stmt->close();
 
+audit($koneksi, 'hapus_relasi', 'id=' . $id . ' penyakit=' . $idp);
 redirect('index.php?page=penyakit-detail&id=' . $idp);

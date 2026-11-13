@@ -12,4 +12,5 @@ $stmt->bind_param('i', $id);
 $stmt->execute();
 $stmt->close();
 
+audit($koneksi, 'hapus_gejala', 'id=' . $id);
 redirect('index.php?page=gejala');

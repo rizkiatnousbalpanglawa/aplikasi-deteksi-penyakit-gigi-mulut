@@ -82,6 +82,7 @@
            $stmt->bind_param('s', $nama);
            if ($stmt->execute()) {
                $stmt->close();
+               audit($koneksi, 'tambah_gejala', $nama);
                redirect_js('index.php?page=gejala', 'Data Berhasil Ditambahkan', 'success');
            } else {
                error_log('Tambah gejala gagal: ' . $stmt->error);

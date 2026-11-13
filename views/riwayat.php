@@ -1,4 +1,18 @@
 <?php $id_user = (int)$_SESSION['id']; ?>
+<?php
+$perHalaman = 10;
+$halaman = max(1, (int)($_GET['hal'] ?? 1));
+$stmtHitung = $koneksi->prepare("SELECT COUNT(*) AS total FROM hasil_pemeriksaan WHERE id_user = ?");
+$stmtHitung->bind_param('i', $id_user);
+$stmtHitung->execute();
+$total = (int)($stmtHitung->get_result()->fetch_assoc()['total'] ?? 0);
+$stmtHitung->close();
+$totalHalaman = max(1, (int)ceil($total / $perHalaman));
+if ($halaman > $totalHalaman) {
+    $halaman = $totalHalaman;
+}
+$offset = ($halaman - 1) * $perHalaman;
+?>
 <div class="container">
     <h3 class="mt-2"> <i class="fa fa-file-o"></i> Riwayat</h3>
     <hr class="mt-0 bg-biru">
@@ -7,8 +21,9 @@
     $stmt = $koneksi->prepare(
         'SELECT id_hasil_pemeriksaan, tanggal_pemeriksaan FROM hasil_pemeriksaan'
         . ' WHERE id_user = ? ORDER BY tanggal_pemeriksaan DESC, id_hasil_pemeriksaan DESC'
+        . ' LIMIT ? OFFSET ?'
     );
-    $stmt->bind_param('i', $id_user);
+    $stmt->bind_param('iii', $id_user, $perHalaman, $offset);
     $stmt->execute();
     $get = $stmt->get_result();
     ?>
@@ -24,4 +39,18 @@
         </div>
     <?php endwhile; ?>
     <?php $stmt->close(); ?>
+
+    <?php if ($totalHalaman > 1) : ?>
+    <nav aria-label="Halaman riwayat">
+        <ul class="pagination justify-content-center">
+            <li class="page-item <?= $halaman <= 1 ? 'disabled' : '' ?>">
+                <a class="page-link" href="index.php?page=riwayat&hal=<?= $halaman - 1 ?>">Sebelumnya</a>
+            </li>
+            <li class="page-item disabled"><span class="page-link">Hal <?= $halaman ?> dari <?= $totalHalaman ?></span></li>
+            <li class="page-item <?= $halaman >= $totalHalaman ? 'disabled' : '' ?>">
+                <a class="page-link" href="index.php?page=riwayat&hal=<?= $halaman + 1 ?>">Berikutnya</a>
+            </li>
+        </ul>
+    </nav>
+    <?php endif; ?>
 </div>

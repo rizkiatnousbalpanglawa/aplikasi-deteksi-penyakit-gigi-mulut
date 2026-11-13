@@ -39,6 +39,11 @@
                        <td style="vertical-align: middle" class="text-center"><?= e($set['no_hp']) ?></td>
                        <td style="vertical-align: middle" class="text-center">
                            <a href="index.php?page=user-riwayat&id=<?= (int)$set['id_user'] ?>" class="btn btn-primary btn-sm"><i class="fa fa-file-o"></i> Riwayat</a>
+                           <form action="user-sandi.php" method="post" style="display:inline" onsubmit="return confirm('Reset sandi user ini?')">
+                               <?= csrf_field() ?>
+                               <input type="hidden" name="id_user" value="<?= (int)$set['id_user'] ?>">
+                               <button type="submit" class="btn btn-warning btn-sm" name="reset"><i class="fa fa-key"></i> Reset Sandi</button>
+                           </form>
                        </td>
                    </tr>
                <?php $no++; endwhile ?>

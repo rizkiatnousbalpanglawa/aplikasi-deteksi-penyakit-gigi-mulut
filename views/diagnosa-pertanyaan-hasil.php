@@ -132,32 +132,71 @@ try {
         throw new Exception('Tidak ada penyakit yang cocok dengan gejala tersebut.');
     }
 
-    // Ambil kandidat terbaik secara deterministik: presentase tertinggi,
+    // Ambil 3 kandidat terbaik secara deterministik: presentase tertinggi,
     // lalu jumlah gejala terbanyak, lalu id terkecil.
     $ambil = $koneksi->prepare(
         'SELECT id_jenis_penyakit, presentase FROM hasil_kemungkinan'
-        . ' WHERE id_user = ? ORDER BY presentase DESC, jumlah_gejala DESC, id_jenis_penyakit ASC LIMIT 1'
+        . ' WHERE id_user = ? ORDER BY presentase DESC, jumlah_gejala DESC, id_jenis_penyakit ASC LIMIT 3'
     );
     $ambil->bind_param('i', $id_user);
     $ambil->execute();
-    $pecah = $ambil->get_result()->fetch_assoc();
+    $hasilAmbil = $ambil->get_result();
+    $rkandidat = [];
+    if ($hasilAmbil) {
+        while ($barisKandidat = $hasilAmbil->fetch_assoc()) {
+            $rkandidat[] = $barisKandidat;
+        }
+    }
     $ambil->close();
 
-    if (!$pecah || $pecah['id_jenis_penyakit'] === null) {
+    if (!$rkandidat || $rkandidat[0]['id_jenis_penyakit'] === null) {
         throw new Exception('Hasil tidak dapat dihitung.');
     }
 
-    $hasilpresentase = (float)$pecah['presentase'];
-    $hasil_jenis_penyakit = (int)$pecah['id_jenis_penyakit'];
+    $hasilpresentase = (float)$rkandidat[0]['presentase'];
+    $hasil_jenis_penyakit = (int)$rkandidat[0]['id_jenis_penyakit'];
+    $kandidat2_id = isset($rkandidat[1]) ? (int)$rkandidat[1]['id_jenis_penyakit'] : null;
+    $kandidat2_skor = isset($rkandidat[1]) ? (string)$rkandidat[1]['presentase'] : null;
+    $kandidat3_id = isset($rkandidat[2]) ? (int)$rkandidat[2]['id_jenis_penyakit'] : null;
+    $kandidat3_skor = isset($rkandidat[2]) ? (string)$rkandidat[2]['presentase'] : null;
     $tanggal = date("Y-m-d");
 
-    $simpan = $koneksi->prepare(
-        'INSERT INTO hasil_pemeriksaan'
-        . ' (id_jenis_penyakit, tanggal_pemeriksaan, presentase_hasil, id_user)'
-        . ' VALUES (?, ?, ?, ?)'
-    );
+    // Tulis kandidat banding bila kolomnya ada (migrasi 003); bila belum,
+    // simpan format lama agar DB lama tetap bisa dipakai.
+    $punyaKandidat = false;
+    $cekKolom = $koneksi->query("SHOW COLUMNS FROM hasil_pemeriksaan LIKE 'kandidat2_id'");
+    if ($cekKolom) {
+        $punyaKandidat = ((int)$cekKolom->num_rows) > 0;
+        $cekKolom->close();
+    }
+
     $presentaseStr = (string)$hasilpresentase;
-    $simpan->bind_param('issi', $hasil_jenis_penyakit, $tanggal, $presentaseStr, $id_user);
+    if ($punyaKandidat) {
+        $simpan = $koneksi->prepare(
+            'INSERT INTO hasil_pemeriksaan'
+            . ' (id_jenis_penyakit, tanggal_pemeriksaan, presentase_hasil,'
+            . ' kandidat2_id, kandidat2_skor, kandidat3_id, kandidat3_skor, id_user)'
+            . ' VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+        );
+        $simpan->bind_param(
+            'ississis',
+            $hasil_jenis_penyakit,
+            $tanggal,
+            $presentaseStr,
+            $kandidat2_id,
+            $kandidat2_skor,
+            $kandidat3_id,
+            $kandidat3_skor,
+            $id_user
+        );
+    } else {
+        $simpan = $koneksi->prepare(
+            'INSERT INTO hasil_pemeriksaan'
+            . ' (id_jenis_penyakit, tanggal_pemeriksaan, presentase_hasil, id_user)'
+            . ' VALUES (?, ?, ?, ?)'
+        );
+        $simpan->bind_param('issi', $hasil_jenis_penyakit, $tanggal, $presentaseStr, $id_user);
+    }
     if (!$simpan->execute()) {
         $dbError = $simpan->error;
         $simpan->close();
@@ -179,6 +218,7 @@ try {
     }
 
     $koneksi->commit();
+    audit($koneksi, 'diagnosa', 'penyakit=' . $hasil_jenis_penyakit . ' skor=' . $hasilpresentase);
     redirect('diagnosa-hasil.php?id=' . (int)$lastinsertid);
 } catch (Throwable $ex) {
     $koneksi->rollback();

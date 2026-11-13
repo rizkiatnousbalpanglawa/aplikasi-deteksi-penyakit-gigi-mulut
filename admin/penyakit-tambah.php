@@ -22,6 +22,7 @@ if (isset($_POST['simpan'])) {
 
     if ($simpan->execute()) {
         $simpan->close();
+        audit($koneksi, 'tambah_penyakit', $nama);
         redirect('index.php?page=penyakit', 'Data Berhasil Ditambahkan', 'success');
     }
 

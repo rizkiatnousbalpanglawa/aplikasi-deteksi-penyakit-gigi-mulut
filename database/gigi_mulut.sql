@@ -35,7 +35,9 @@ CREATE TABLE IF NOT EXISTS `penyakit_gejala` (
   PRIMARY KEY (`id_penyakit_gejala`),
   UNIQUE KEY `uq_relasi` (`id_jenis_penyakit`, `id_gejala`),
   KEY `idx_pg_penyakit` (`id_jenis_penyakit`),
-  KEY `idx_pg_gejala` (`id_gejala`)
+  KEY `idx_pg_gejala` (`id_gejala`),
+  CONSTRAINT `fk_pg_penyakit` FOREIGN KEY (`id_jenis_penyakit`) REFERENCES `jenis_penyakit` (`id_jenis_penyakit`) ON DELETE CASCADE,
+  CONSTRAINT `fk_pg_gejala` FOREIGN KEY (`id_gejala`) REFERENCES `gejala` (`id_gejala`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `user` (
@@ -54,12 +56,18 @@ CREATE TABLE IF NOT EXISTS `hasil_pemeriksaan` (
   `id_jenis_penyakit` int(11) NOT NULL,
   `tanggal_pemeriksaan` date NOT NULL,
   `presentase_hasil` varchar(100) NOT NULL,
+  `kandidat2_id` int(11) NULL DEFAULT NULL,
+  `kandidat2_skor` varchar(100) NULL DEFAULT NULL,
+  `kandidat3_id` int(11) NULL DEFAULT NULL,
+  `kandidat3_skor` varchar(100) NULL DEFAULT NULL,
   `id_user` int(11) NOT NULL,
   PRIMARY KEY (`id_hasil_pemeriksaan`),
   KEY `idx_hp_user` (`id_user`),
   KEY `idx_hp_penyakit` (`id_jenis_penyakit`),
   CONSTRAINT `fk_hp_user` FOREIGN KEY (`id_user`) REFERENCES `user` (`id_user`) ON DELETE CASCADE,
-  CONSTRAINT `fk_hp_penyakit` FOREIGN KEY (`id_jenis_penyakit`) REFERENCES `jenis_penyakit` (`id_jenis_penyakit`) ON DELETE RESTRICT
+  CONSTRAINT `fk_hp_penyakit` FOREIGN KEY (`id_jenis_penyakit`) REFERENCES `jenis_penyakit` (`id_jenis_penyakit`) ON DELETE RESTRICT,
+  CONSTRAINT `fk_hp_kand2` FOREIGN KEY (`kandidat2_id`) REFERENCES `jenis_penyakit` (`id_jenis_penyakit`) ON DELETE RESTRICT,
+  CONSTRAINT `fk_hp_kand3` FOREIGN KEY (`kandidat3_id`) REFERENCES `jenis_penyakit` (`id_jenis_penyakit`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `hasil_kemungkinan` (
@@ -84,6 +92,28 @@ CREATE TABLE IF NOT EXISTS `hasil_sementara` (
   CONSTRAINT `fk_hs_user` FOREIGN KEY (`id_user`) REFERENCES `user` (`id_user`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS `login_upaya` (
+  `id_upaya` int(11) NOT NULL AUTO_INCREMENT,
+  `kunci` varchar(150) NOT NULL COMMENT 'username + ip yang dinormalisasi',
+  `waktu` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `berhasil` tinyint(1) NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id_upaya`),
+  KEY `idx_upaya_kunci` (`kunci`, `waktu`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `audit_log` (
+  `id_audit` int(11) NOT NULL AUTO_INCREMENT,
+  `waktu` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `aktor` varchar(100) NOT NULL DEFAULT '-',
+  `peran` varchar(10) NOT NULL DEFAULT '-',
+  `aksi` varchar(100) NOT NULL,
+  `detail` text NULL,
+  `ip` varchar(45) NULL,
+  PRIMARY KEY (`id_audit`),
+  KEY `idx_audit_waktu` (`waktu`),
+  KEY `idx_audit_aktor` (`aktor`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS `sementara` (
   `id_sementara` int(11) NOT NULL AUTO_INCREMENT,
   `id_user` int(11) NOT NULL,
@@ -98,11 +128,13 @@ CREATE TABLE IF NOT EXISTS `sementara` (
 INSERT INTO `admin` (`username`, `kata_sandi`) VALUES ('admin', '$2y$12$OWB9kOL7ELW3Ec3E3//u7uqdb1Y5yMIwxZC95yQWxT2b./omEMKIG')
 ON DUPLICATE KEY UPDATE `kata_sandi` = VALUES(`kata_sandi`);
 
--- Catatan integritas: data bawaan lama mengandung id penyakit/gejala yang tidak ada di tabel master,
--- sehingga FK di penyakit_gejala sengaja tidak dipasang. Rapikan master via panel admin,
--- lalu aktifkan FK bila data sudah konsisten.
+-- Master yatim pada dump lama sudah dirapikan: gejala id 1-2 dikembalikan
+-- ('Gusi Bengkak', 'Gusi Berdarah' dari data legacy), relasi berpenyakit tak
+-- terdaftar dibuang, FK penyakit_gejala aktif. Migrasi DB lama: 004_master_fk.sql.
 -- Seed master (tanpa data pasien / hasil)
 INSERT INTO `gejala` (`id_gejala`, `gejala`) VALUES
+(1, 'Gusi Bengkak'),
+(2, 'Gusi Berdarah'),
 (3, 'Gusi Sakit Jika Disentuh'),
 (4, 'Radang Gusi'),
 (5, 'Gusi Mengkilat'),
@@ -152,62 +184,10 @@ INSERT INTO `jenis_penyakit` (`id_jenis_penyakit`, `nama_penyakit`, `defenisi`, 
 ON DUPLICATE KEY UPDATE `nama_penyakit` = VALUES(`nama_penyakit`), `defenisi` = VALUES(`defenisi`), `penyebab` = VALUES(`penyebab`), `penanganan` = VALUES(`penanganan`);
 
 INSERT INTO `penyakit_gejala` (`id_penyakit_gejala`, `id_jenis_penyakit`, `id_gejala`, `mb`, `md`) VALUES
-(6, 1, 6, 0.80, 0.20),
-(7, 1, 8, 0.80, 0.20),
-(8, 3, 1, 0.80, 0.20),
-(9, 3, 2, 0.80, 0.20),
-(10, 3, 4, 0.80, 0.20),
-(11, 3, 5, 0.80, 0.20),
-(12, 4, 6, 0.80, 0.20),
-(13, 4, 7, 0.80, 0.20),
-(14, 5, 1, 0.80, 0.20),
-(15, 5, 3, 0.80, 0.20),
-(16, 5, 5, 0.80, 0.20),
-(17, 5, 7, 0.80, 0.20),
-(18, 6, 2, 0.80, 0.20),
-(19, 6, 8, 0.80, 0.20),
-(20, 3, 32, 0.80, 0.20),
-(21, 1, 11, 0.80, 0.20),
-(22, 4, 11, 0.80, 0.20),
-(23, 4, 22, 0.80, 0.20),
-(24, 5, 26, 0.80, 0.20),
-(25, 5, 6, 0.80, 0.20),
-(26, 5, 11, 0.80, 0.20),
-(27, 5, 14, 0.80, 0.20),
-(28, 5, 15, 0.80, 0.20),
-(29, 6, 13, 0.80, 0.20),
-(30, 6, 34, 0.80, 0.20),
-(31, 6, 35, 0.80, 0.20),
-(32, 6, 38, 0.80, 0.20),
-(33, 9, 11, 0.80, 0.20),
-(34, 9, 6, 0.80, 0.20),
-(35, 9, 8, 0.80, 0.20),
 (36, 10, 10, 0.80, 0.20),
-(37, 11, 16, 0.80, 0.20),
-(38, 11, 17, 0.80, 0.20),
-(39, 11, 21, 0.80, 0.20),
-(40, 11, 20, 0.80, 0.20),
-(41, 12, 11, 0.80, 0.20),
-(42, 12, 7, 0.80, 0.20),
-(43, 12, 10, 0.80, 0.20),
-(44, 12, 8, 0.80, 0.20),
-(45, 13, 18, 0.80, 0.20),
-(46, 13, 24, 0.80, 0.20),
-(47, 13, 25, 0.80, 0.20),
-(48, 13, 26, 0.80, 0.20),
-(49, 13, 27, 0.80, 0.20),
-(50, 13, 28, 0.80, 0.20),
-(51, 13, 29, 0.80, 0.20),
-(52, 13, 31, 0.80, 0.20),
-(53, 13, 36, 0.80, 0.20),
 (54, 14, 6, 0.80, 0.20),
 (55, 14, 8, 0.80, 0.20),
 (56, 14, 11, 0.80, 0.20),
-(57, 15, 1, 0.80, 0.20),
-(59, 15, 2, 0.80, 0.20),
-(60, 15, 32, 0.80, 0.20),
-(61, 15, 4, 0.80, 0.20),
-(62, 15, 5, 0.80, 0.20),
 (63, 16, 11, 0.80, 0.20),
 (64, 16, 6, 0.80, 0.20),
 (65, 16, 7, 0.80, 0.20),

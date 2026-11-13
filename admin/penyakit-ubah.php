@@ -76,6 +76,7 @@
             $upd->bind_param('ssssi', $nama, $defenisi, $penyebab, $penanganan, $id);
             if ($upd->execute()) {
                 $upd->close();
+                audit($koneksi, 'ubah_penyakit', $nama);
                 redirect_js('index.php?page=penyakit', 'Data Telah Diubah', 'success');
             } else {
                 error_log('Ubah penyakit gagal: ' . $upd->error);

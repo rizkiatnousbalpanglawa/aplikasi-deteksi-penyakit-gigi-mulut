@@ -54,6 +54,7 @@ if ($katasandi !== '') {
 if ($upd->execute()) {
     $upd->close();
     $_SESSION['nama'] = $nama;
+    audit($koneksi, 'ubah_akun', $nama);
     redirect('index.php?page=akun', 'Akun berhasil diubah', 'success');
 }
 

@@ -11,6 +11,12 @@ if (isset($_POST['masuk'])) {
         redirect('index.php', 'Username dan kata sandi wajib diisi', 'warning');
     }
 
+    $kunci = rate_kunci($username);
+    if (!rate_izinkan($koneksi, $kunci)) {
+        audit($koneksi, 'login_admin_diblokir', $username);
+        redirect('index.php', 'Terlalu banyak percobaan gagal. Coba lagi 10 menit.', 'danger');
+    }
+
     $stmt = $koneksi->prepare("SELECT username, kata_sandi FROM admin WHERE username = ? LIMIT 1");
     $stmt->bind_param('s', $username);
     $stmt->execute();
@@ -43,10 +49,15 @@ if (isset($_POST['masuk'])) {
         }
 
         if ($ok) {
+            rate_catat($koneksi, $kunci, true);
             session_regenerate_id(true);
             $_SESSION['admin']['user'] = $row['username'];
+            audit($koneksi, 'login_admin', $row['username']);
             redirect('../admin/index.php');
         }
+
+        rate_catat($koneksi, $kunci, false);
+        audit($koneksi, 'login_admin_gagal', $username);
     }
 
     if (isset($stmt)) {

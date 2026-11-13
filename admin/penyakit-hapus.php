@@ -15,4 +15,5 @@ $stmt->bind_param('i', $id);
 $stmt->execute();
 $stmt->close();
 
+audit($koneksi, 'hapus_penyakit', 'id=' . $id);
 redirect('index.php?page=penyakit');

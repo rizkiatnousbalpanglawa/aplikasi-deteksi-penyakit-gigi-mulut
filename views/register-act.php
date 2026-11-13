@@ -49,6 +49,7 @@ if (isset($_POST['daftar'])) {
 
     if ($simpan->execute()) {
         $simpan->close();
+        audit($koneksi, 'register', $nama);
         redirect('login.php', 'Pendaftaran berhasil. Silakan login.', 'success');
     }
 

@@ -22,6 +22,22 @@
    <!-- /.row -->
 
    <?php $id = (int)($_GET['id'] ?? 0); ?>
+   <?php
+    $stmtBobot = $koneksi->prepare(
+        'SELECT COUNT(*) AS total,'
+        . " SUM(mb = 0.80 AND md = 0.20) AS contoh FROM penyakit_gejala WHERE id_jenis_penyakit = ?"
+    );
+    $stmtBobot->bind_param('i', $id);
+    $stmtBobot->execute();
+    $infoBobot = $stmtBobot->get_result()->fetch_assoc();
+    $stmtBobot->close();
+    ?>
+   <?php if (($infoBobot['contoh'] ?? 0) > 0) : ?>
+   <div class="alert alert-warning">
+       <?= (int)$infoBobot['contoh'] ?> dari <?= (int)$infoBobot['total'] ?> relasi masih memakai
+       bobot contoh (MB 0,80 / MD 0,20). Validasi ke pakar sebelum dipakai produksi.
+   </div>
+   <?php endif; ?>
 
    <div class="table-responsive">
        <table class="table table-striped table-bordered" id="tabelid" style="width:100%">
@@ -126,6 +142,7 @@
             $upd->bind_param('ddii', $mb, $md, $id_relasi, $id);
             if ($upd->execute()) {
                 $upd->close();
+                audit($koneksi, 'ubah_bobot', 'relasi=' . $id_relasi . ' mb=' . $mb . ' md=' . $md);
                 redirect_js('index.php?page=penyakit-detail&id=' . (int)$id, 'Bobot berhasil diubah', 'success');
             } else {
                 error_log('Ubah bobot gagal: ' . $upd->error);
@@ -161,6 +178,7 @@
                 $ins->bind_param('iidd', $id, $id_gejala, $mb, $md);
                 if ($ins->execute()) {
                     $ins->close();
+                    audit($koneksi, 'tambah_relasi', 'penyakit=' . $id . ' gejala=' . $id_gejala);
                     redirect_js('index.php?page=penyakit-detail&id=' . (int)$id, 'Data Berhasil Ditambahkan', 'success');
                 } else {
                     error_log('Tambah relasi gagal: ' . $ins->error);
