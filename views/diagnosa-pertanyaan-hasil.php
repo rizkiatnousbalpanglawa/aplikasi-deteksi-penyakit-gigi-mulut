@@ -1,23 +1,21 @@
 <?php
-require_once __DIR__ . '/../config/helpers.php';
+require_once __DIR__ . '/../config/bootstrap.php';
 require_user();
-include "../config/koneksi.php";
 
 if (!isset($_POST['simpan'])) {
-    header('Location: index.php?page=mulai-diagnosa');
-    exit;
+    redirect('index.php?page=mulai-diagnosa');
 }
 
 csrf_check();
 
-$id_user = (int) $_SESSION['id'];
+$id_user = (int)$_SESSION['id'];
 
 // Ambil daftar gejala valid agar mapping tidak geser (bug lama pakai counter 1..N).
 $gejalaRows = [];
 $res = $koneksi->query("SELECT id_gejala FROM gejala ORDER BY id_gejala ASC");
 if ($res) {
     while ($r = $res->fetch_assoc()) {
-        $gejalaRows[] = (int) $r['id_gejala'];
+        $gejalaRows[] = (int)$r['id_gejala'];
     }
 }
 
@@ -27,7 +25,7 @@ foreach ($gejalaRows as $id_gejala) {
     if (!isset($_POST[$key])) {
         continue;
     }
-    $val = (int) $_POST[$key];
+    $val = (int)$_POST[$key];
     if ($val === $id_gejala) {
         $dipilih[] = $id_gejala;
     }
@@ -35,8 +33,7 @@ foreach ($gejalaRows as $id_gejala) {
 $dipilih = array_values(array_unique($dipilih));
 
 if (count($dipilih) === 0) {
-    echo "<script>alert('Pilih minimal satu gejala (Ya)');location='index.php?page=mulai-diagnosa'</script>";
-    exit;
+    redirect('index.php?page=mulai-diagnosa', 'Pilih minimal satu gejala (Ya)', 'warning');
 }
 
 $koneksi->begin_transaction();
@@ -65,7 +62,7 @@ try {
         $getNama->execute();
         $rNama = $getNama->get_result()->fetch_assoc();
         $namaGejala = $rNama['gejala'] ?? ('Gejala #' . $id_gejala);
-        $jawaban = (string) $id_gejala;
+        $jawaban = (string)$id_gejala;
         $insSementara->bind_param('ssi', $namaGejala, $jawaban, $id_user);
         $insSementara->execute();
     }
@@ -82,7 +79,7 @@ try {
         $getPenyakit->execute();
         $rp = $getPenyakit->get_result();
         while ($rowP = $rp->fetch_assoc()) {
-            $id_penyakit = (int) $rowP['id_jenis_penyakit'];
+            $id_penyakit = (int)$rowP['id_jenis_penyakit'];
             $insSementara2->bind_param('iii', $id_user, $id_penyakit, $id_gejala);
             $insSementara2->execute();
         }
@@ -90,10 +87,12 @@ try {
     $getPenyakit->close();
     $insSementara2->close();
 
-    // Hitung kecocokan per penyakit.
+    // Hitung kecocokan per penyakit. Hanya penyakit yang terdaftar di master
+    // (JOIN ke jenis_penyakit) agar hasil selalu punya definisi/penanganan.
     $getCocok = $koneksi->prepare(
-        'SELECT id_jenis_penyakit, COUNT(*) AS jumlah FROM hasil_sementara'
-        . ' WHERE id_user = ? GROUP BY id_jenis_penyakit ORDER BY COUNT(*) DESC'
+        'SELECT hs.id_jenis_penyakit, COUNT(*) AS jumlah FROM hasil_sementara hs'
+        . ' JOIN jenis_penyakit jp ON jp.id_jenis_penyakit = hs.id_jenis_penyakit'
+        . ' WHERE hs.id_user = ? GROUP BY hs.id_jenis_penyakit ORDER BY COUNT(*) DESC'
     );
     $getCocok->bind_param('i', $id_user);
     $getCocok->execute();
@@ -108,13 +107,13 @@ try {
     $adaCocok = false;
     while ($rowC = $rc->fetch_assoc()) {
         $adaCocok = true;
-        $id_cocok = (int) $rowC['id_jenis_penyakit'];
-        $jumlah = (int) $rowC['jumlah'];
+        $id_cocok = (int)$rowC['id_jenis_penyakit'];
+        $jumlah = (int)$rowC['jumlah'];
 
         $getTotal->bind_param('i', $id_cocok);
         $getTotal->execute();
         $rt = $getTotal->get_result()->fetch_assoc();
-        $total = max(1, (int) ($rt['total_gejala'] ?? 1));
+        $total = max(1, (int)($rt['total_gejala'] ?? 1));
         $presentase = round(($jumlah / $total) * 100, 1);
 
         $insKemungkinan->bind_param('iiiid', $id_user, $id_cocok, $jumlah, $total, $presentase);
@@ -128,10 +127,11 @@ try {
         throw new Exception('Tidak ada penyakit yang cocok dengan gejala tersebut.');
     }
 
-    // Ambil presentase tertinggi milik diagnosa ini.
+    // Ambil kandidat terbaik secara deterministik: presentase tertinggi,
+    // lalu jumlah gejala terbanyak, lalu id terkecil.
     $ambil = $koneksi->prepare(
-        'SELECT MAX(presentase) AS presentase, id_jenis_penyakit'
-        . ' FROM hasil_kemungkinan WHERE id_user = ?'
+        'SELECT id_jenis_penyakit, presentase FROM hasil_kemungkinan'
+        . ' WHERE id_user = ? ORDER BY presentase DESC, jumlah_gejala DESC, id_jenis_penyakit ASC LIMIT 1'
     );
     $ambil->bind_param('i', $id_user);
     $ambil->execute();
@@ -142,8 +142,8 @@ try {
         throw new Exception('Hasil tidak dapat dihitung.');
     }
 
-    $hasilpresentase = (float) $pecah['presentase'];
-    $hasil_jenis_penyakit = (int) $pecah['id_jenis_penyakit'];
+    $hasilpresentase = (float)$pecah['presentase'];
+    $hasil_jenis_penyakit = (int)$pecah['id_jenis_penyakit'];
     $tanggal = date("Y-m-d");
 
     $simpan = $koneksi->prepare(
@@ -151,11 +151,19 @@ try {
         . ' (id_jenis_penyakit, tanggal_pemeriksaan, presentase_hasil, id_user)'
         . ' VALUES (?, ?, ?, ?)'
     );
-    $presentaseStr = (string) $hasilpresentase;
+    $presentaseStr = (string)$hasilpresentase;
     $simpan->bind_param('issi', $hasil_jenis_penyakit, $tanggal, $presentaseStr, $id_user);
-    $simpan->execute();
+    if (!$simpan->execute()) {
+        $dbError = $simpan->error;
+        $simpan->close();
+        throw new Exception('Gagal menyimpan hasil pemeriksaan: ' . $dbError);
+    }
     $lastinsertid = $koneksi->insert_id;
     $simpan->close();
+
+    if ($lastinsertid <= 0) {
+        throw new Exception('Gagal menyimpan hasil pemeriksaan.');
+    }
 
     // Bersihkan tabel kerja agar tidak menumpuk antar diagnosa.
     foreach (["sementara", "hasil_sementara", "hasil_kemungkinan"] as $t) {
@@ -166,11 +174,9 @@ try {
     }
 
     $koneksi->commit();
-    echo "<script>location='diagnosa-hasil.php?id=" . (int) $lastinsertid . "'</script>";
-    exit;
+    redirect('diagnosa-hasil.php?id=' . (int)$lastinsertid);
 } catch (Throwable $ex) {
     $koneksi->rollback();
     error_log('Diagnosa gagal: ' . $ex->getMessage());
-    echo "<script>alert('Diagnosa gagal diproses. Coba lagi.');location='index.php?page=mulai-diagnosa'</script>";
-    exit;
+    redirect('index.php?page=mulai-diagnosa', 'Diagnosa gagal diproses. Coba lagi.', 'danger');
 }

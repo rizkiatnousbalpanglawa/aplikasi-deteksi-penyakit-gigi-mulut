@@ -1,4 +1,4 @@
-   <?php $id = (int) ($_GET['id'] ?? 0); ?>
+   <?php $id = (int)($_GET['id'] ?? 0); ?>
    <!-- Page Heading -->
    <div class="row">
        <div class="col-lg-12">

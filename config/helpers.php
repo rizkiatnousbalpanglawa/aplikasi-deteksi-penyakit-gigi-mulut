@@ -5,7 +5,7 @@
 if (!function_exists('str_starts_with')) {
     function str_starts_with($haystack, $needle)
     {
-        return $needle === '' || strpos((string) $haystack, (string) $needle) === 0;
+        return $needle === '' || strpos((string)$haystack, (string)$needle) === 0;
     }
 }
 
@@ -29,7 +29,7 @@ if (!function_exists('start_secure_session')) {
 if (!function_exists('e')) {
     function e($value): string
     {
-        return htmlspecialchars((string) ($value ?? ''), ENT_QUOTES, 'UTF-8');
+        return htmlspecialchars((string)($value ?? ''), ENT_QUOTES, 'UTF-8');
     }
 }
 
@@ -76,12 +76,68 @@ if (!function_exists('require_admin')) {
 }
 
 if (!function_exists('require_user')) {
-    function require_user(): void
+    function require_user()
     {
         start_secure_session();
         if (empty($_SESSION['id'])) {
             header('Location: login.php');
             exit;
         }
+    }
+}
+
+if (!function_exists('flash')) {
+    function flash(string $message, string $type = 'success'): void
+    {
+        start_secure_session();
+        $_SESSION['_flash'] = ['message' => (string) $message, 'type' => (string) $type];
+    }
+}
+
+if (!function_exists('flash_html')) {
+    function flash_html(): string
+    {
+        start_secure_session();
+        $flash = isset($_SESSION['_flash']) ? $_SESSION['_flash'] : null;
+        unset($_SESSION['_flash']);
+        if (!is_array($flash) || empty($flash['message'])) {
+            return '';
+        }
+        $allowed = ['success', 'danger', 'warning', 'info'];
+        $type = in_array(isset($flash['type']) ? $flash['type'] : '', $allowed, true)
+            ? $flash['type']
+            : 'info';
+        return '<div class="alert alert-' . e($type) . ' alert-dismissible fade show" role="alert">'
+            . e($flash['message'])
+            . '<button type="button" class="close" data-dismiss="alert" aria-label="Close">'
+            . '<span aria-hidden="true">&times;</span></button></div>';
+    }
+}
+
+if (!function_exists('redirect')) {
+    // Redirect via header. Hanya untuk handler yang berjalan SEBELUM output dimulai.
+    function redirect(string $url, $message = null, string $type = 'success'): void
+    {
+        if ($message !== null) {
+            flash($message, $type);
+        }
+        header('Location: ' . $url);
+        exit;
+    }
+}
+
+if (!function_exists('redirect_js')) {
+    // Redirect via JS untuk handler fragment yang berjalan SETELAH output dimulai
+    // (mis. form di admin/gejala.php). header() sudah tidak bisa dipakai di sana.
+    function redirect_js(string $url, $message = null, string $type = 'success'): void
+    {
+        if ($message !== null) {
+            flash($message, $type);
+        }
+        if (!preg_match('~^[a-zA-Z0-9_./?=&%#-]*$~', (string) $url)) {
+            $url = 'index.php';
+        }
+        echo '<script>location=' . json_encode((string) $url) . ';</script>';
+        exit;
     }
 }

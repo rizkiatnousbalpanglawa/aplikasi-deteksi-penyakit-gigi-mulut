@@ -15,10 +15,11 @@ User menjawab Ya/Tidak untuk tiap gejala, sistem menghitung kecocokan per penyak
 ```
 admin/    Panel admin (guard session admin + CSRF + prepared statements)
 assets/   CSS/JS lokal (SB Admin, Font Awesome)
-config/   koneksi.php (env-based), helpers.php (session/CSRF/escaping/guard)
+config/   bootstrap.php (entry-point tunggal), koneksi.php (env-based),
+          helpers.php (session/CSRF/escaping/guard/flash/redirect)
 database/ gigi_mulut.sql (skema bersih + seed master, tanpa PII)
 login/    Login admin
-views/    Aplikasi user (diagnosa, riwayat, akun)
+views/    Aplikasi user (diagnosa, riwayat, akun) + views/layout/ (header/footer)
 index.php Redirect ke admin/
 ```
 
@@ -89,6 +90,11 @@ Perbaikan yang sudah diterapkan:
   input `datetime-local` untuk kolom `date` diganti `date`.
 - **Duplikasi view**: `diagnosa-hasil.php` dan `riwayat-lihat.php` memakai partial
   bersama `views/_hasil.php`.
+- **Kandidat & pemenang deterministik**: kecocokan hanya menghitung penyakit yang
+  terdaftar di master (`JOIN jenis_penyakit`), pemenang diambil
+  `ORDER BY presentase DESC, jumlah DESC, id ASC LIMIT 1` (dulu `MAX()` tanpa
+  grup yang hasilnya tak-menentu), dan kegagalan `INSERT` hasil kini melempar
+  error eksplisit + rollback, bukan redirect diam-diam ke `id=0`.
 
 ## Verifikasi
 
@@ -98,15 +104,33 @@ Perbaikan yang sudah diterapkan:
   (mis. penyakit 1: 2/3 = 66,7%).
 - Register → password tersimpan sebagai bcrypt (60 char), login `password_verify` OK.
 
-## Gaya kode (PER Coding Style)
+## Arsitektur (Fase 1 maintainability)
 
-Kode PHP mengikuti [PER Coding Style](https://www.php-fig.org/per/coding-style/):
+- **Satu bootstrap**: setiap entry point cukup `require config/bootstrap.php`
+  (session aman + helper + koneksi + error handler). Jangan require file config
+  satu per satu lagi.
+- **Layout user**: `views/layout/header.php` + `footer.php` (`$title`, `$bodyAttrs`
+  opsional). Halaman hanya isi konten + `include` layout. Halaman admin memakai
+  `admin/index.php` sebagai layoutnya; form login admin (`login/`) temanya sendiri.
+- **Flash + redirect**: handler POST memakai `redirect($url, $pesan, $tipe)` bila
+  berjalan sebelum output, atau `redirect_js(...)` bila di dalam fragment yang
+  sudah terlanjur output (form admin). Pesan tampil sekali via `flash_html()`
+  yang sudah dipasang di layout. Jangan tambah `alert()` JS baru.
+
+## Gaya kode (PSR-12 + PER Coding Style)
+
+Kode PHP mengikuti [PSR-12](https://www.php-fig.org/psr/psr-12/) dan
+[PER Coding Style](https://www.php-fig.org/per/coding-style/) (PER memperluas PSR-12):
 
 - Tag hanya `<?php` / `<?=`, keyword lowercase, `elseif` satu kata.
 - Spasi setelah keyword kontrol (`if (`, `while (`, `catch (`), brace `{` sejajar,
   `} else {` / `} elseif {` / `} catch {` sebaris.
 - Fungsi: brace di baris sendiri, return type dideklarasikan (`: void`, `: string`).
-- File PHP murni tanpa closing tag `?>`; tanpa trailing whitespace; 1 newline di EOF.
+- File PHP murni tanpa closing tag `?>`; tanpa trailing whitespace; 1 newline di EOF;
+  tanpa tab (indentasi 4 spasi); tanpa blank line beruntun; satu statement per baris.
+- Cast rapat tanpa spasi (`(int)$x`, bukan `(int) $x`); `!` tanpa spasi (`!$x`).
+- `switch`: `case` indent sekali, body + `break` sejajar; template boleh memakai
+  sintaks alternatif (`while: … endwhile;`).
 - Statement SQL panjang dipecah via konkatenasi multi-baris; batas lunak 120 kolom
   diterapkan pada kode PHP (baris template HTML/CDN dikecualikan — batas ini
   memang lunak/warning menurut PER).

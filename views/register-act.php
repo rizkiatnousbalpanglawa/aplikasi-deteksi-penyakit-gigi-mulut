@@ -1,41 +1,34 @@
 <?php
-require_once __DIR__ . '/../config/helpers.php';
-start_secure_session();
-include "../config/koneksi.php";
+require_once __DIR__ . '/../config/bootstrap.php';
 
 if (isset($_POST['login'])) {
-    echo "<script>location='login.php'</script>";
-    exit;
+    redirect('login.php');
 }
 
 if (isset($_POST['daftar'])) {
     csrf_check();
 
-    $nama = trim((string) ($_POST['nama'] ?? ''));
-    $tlahirRaw = trim((string) ($_POST['tgl_lahir'] ?? ''));
-    $alamat = trim((string) ($_POST['alamat'] ?? ''));
-    $telp = trim((string) ($_POST['telp'] ?? ''));
-    $katasandi = (string) ($_POST['katasandi'] ?? '');
+    $nama = trim((string)($_POST['nama'] ?? ''));
+    $tlahirRaw = trim((string)($_POST['tgl_lahir'] ?? ''));
+    $alamat = trim((string)($_POST['alamat'] ?? ''));
+    $telp = trim((string)($_POST['telp'] ?? ''));
+    $katasandi = (string)($_POST['katasandi'] ?? '');
 
     if ($nama === '' || $tlahirRaw === '' || $alamat === '' || $telp === '' || $katasandi === '') {
-        echo "<script>alert('Semua field wajib diisi');location='register.php'</script>";
-        exit;
+        redirect('register.php', 'Semua field wajib diisi', 'warning');
     }
 
     if (mb_strlen($nama) > 100 || mb_strlen($telp) > 100) {
-        echo "<script>alert('Nama / No HP terlalu panjang');location='register.php'</script>";
-        exit;
+        redirect('register.php', 'Nama / No HP terlalu panjang', 'warning');
     }
 
     if (mb_strlen($katasandi) < 6) {
-        echo "<script>alert('Kata sandi minimal 6 karakter');location='register.php'</script>";
-        exit;
+        redirect('register.php', 'Kata sandi minimal 6 karakter', 'warning');
     }
 
     $ts = strtotime($tlahirRaw);
     if ($ts === false) {
-        echo "<script>alert('Tanggal lahir tidak valid');location='register.php'</script>";
-        exit;
+        redirect('register.php', 'Tanggal lahir tidak valid', 'warning');
     }
     $tlahir = date("Y-m-d", $ts);
 
@@ -45,8 +38,7 @@ if (isset($_POST['daftar'])) {
     $cek = $stmt->get_result();
     if ($cek && $cek->num_rows >= 1) {
         $stmt->close();
-        echo "<script>alert('Username sudah dipakai');location='register.php'</script>";
-        exit;
+        redirect('register.php', 'Username sudah dipakai', 'danger');
     }
     $stmt->close();
 
@@ -57,12 +49,10 @@ if (isset($_POST['daftar'])) {
 
     if ($simpan->execute()) {
         $simpan->close();
-        echo "<script>location='login.php'</script>";
-        exit;
+        redirect('login.php', 'Pendaftaran berhasil. Silakan login.', 'success');
     }
 
     error_log('Register failed: ' . $simpan->error);
     $simpan->close();
-    echo "<script>alert('Pendaftaran gagal, coba lagi');location='register.php'</script>";
-    exit;
+    redirect('register.php', 'Pendaftaran gagal, coba lagi', 'danger');
 }

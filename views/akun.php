@@ -1,5 +1,5 @@
 <?php
-$id_user = (int) $_SESSION['id'];
+$id_user = (int)$_SESSION['id'];
 $stmt = $koneksi->prepare("SELECT id_user, nama, tgl_lahir, alamat, no_hp FROM user WHERE id_user = ? LIMIT 1");
 $stmt->bind_param('i', $id_user);
 $stmt->execute();

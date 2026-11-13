@@ -18,7 +18,7 @@
 
    <!-- ambil data -->
    <?php
-    $id = (int) ($_GET['id'] ?? 0);
+    $id = (int)($_GET['id'] ?? 0);
     $stmt = $koneksi->prepare(
         'SELECT id_jenis_penyakit, nama_penyakit, defenisi, penyebab, penanganan'
         . ' FROM jenis_penyakit WHERE id_jenis_penyakit = ? LIMIT 1'
@@ -29,7 +29,7 @@
     $set = $get ? $get->fetch_assoc() : null;
     $stmt->close();
     if (!$set) {
-        echo "<script>alert('Data tidak ditemukan');location='index.php?page=penyakit'</script>";
+        redirect_js('index.php?page=penyakit', 'Data tidak ditemukan', 'danger');
         return;
     }
     ?>
@@ -61,14 +61,13 @@
    <?php
     if (isset($_POST['ubah'])) {
         csrf_check();
-        $nama = trim((string) ($_POST['nama'] ?? ''));
-        $defenisi = trim((string) ($_POST['defenisi'] ?? ''));
-        $penyebab = trim((string) ($_POST['penyebab'] ?? ''));
-        $penanganan = trim((string) ($_POST['penanganan'] ?? ''));
+        $nama = trim((string)($_POST['nama'] ?? ''));
+        $defenisi = trim((string)($_POST['defenisi'] ?? ''));
+        $penyebab = trim((string)($_POST['penyebab'] ?? ''));
+        $penanganan = trim((string)($_POST['penanganan'] ?? ''));
 
         if ($nama === '' || $defenisi === '' || $penyebab === '' || $penanganan === '') {
-            echo "<script>alert('Semua field wajib diisi');"
-                . "location='index.php?page=penyakit-ubah&id=" . (int) $id . "'</script>";
+            redirect_js('index.php?page=penyakit-ubah&id=' . (int)$id, 'Semua field wajib diisi', 'warning');
         } else {
             $upd = $koneksi->prepare(
                 'UPDATE jenis_penyakit SET nama_penyakit = ?, defenisi = ?,'
@@ -77,14 +76,13 @@
             $upd->bind_param('ssssi', $nama, $defenisi, $penyebab, $penanganan, $id);
             if ($upd->execute()) {
                 $upd->close();
-                echo "<script>alert('Data Telah Diubah');location='index.php?page=penyakit'</script>";
+                redirect_js('index.php?page=penyakit', 'Data Telah Diubah', 'success');
             } else {
                 error_log('Ubah penyakit gagal: ' . $upd->error);
                 $upd->close();
-                echo "<script>alert('Gagal mengubah data');"
-                    . "location='index.php?page=penyakit-ubah&id=" . (int) $id . "'</script>";
+                redirect_js('index.php?page=penyakit-ubah&id=' . (int)$id, 'Gagal mengubah data', 'danger');
             }
         }
     } elseif (isset($_POST['kembali'])) {
-        echo "<script>location='index.php?page=penyakit'</script>";
+        redirect_js('index.php?page=penyakit');
     }

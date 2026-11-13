@@ -1,31 +1,27 @@
 <?php
-require_once __DIR__ . '/../config/helpers.php';
+require_once __DIR__ . '/../config/bootstrap.php';
 require_user();
-include "../config/koneksi.php";
 
 if (!isset($_POST['ubah'])) {
-    header('Location: index.php?page=akun');
-    exit;
+    redirect('index.php?page=akun');
 }
 
 csrf_check();
 
-$id_user = (int) $_SESSION['id'];
-$nama = trim((string) ($_POST['nama'] ?? ''));
-$tlahirRaw = trim((string) ($_POST['tgl_lahir'] ?? ''));
-$alamat = trim((string) ($_POST['alamat'] ?? ''));
-$telp = trim((string) ($_POST['telp'] ?? ''));
-$katasandi = (string) ($_POST['katasandi'] ?? '');
+$id_user = (int)$_SESSION['id'];
+$nama = trim((string)($_POST['nama'] ?? ''));
+$tlahirRaw = trim((string)($_POST['tgl_lahir'] ?? ''));
+$alamat = trim((string)($_POST['alamat'] ?? ''));
+$telp = trim((string)($_POST['telp'] ?? ''));
+$katasandi = (string)($_POST['katasandi'] ?? '');
 
 if ($nama === '' || $tlahirRaw === '' || $alamat === '' || $telp === '') {
-    echo "<script>alert('Semua field kecuali kata sandi wajib diisi');location='index.php?page=akun'</script>";
-    exit;
+    redirect('index.php?page=akun', 'Semua field kecuali kata sandi wajib diisi', 'warning');
 }
 
 $ts = strtotime($tlahirRaw);
 if ($ts === false) {
-    echo "<script>alert('Tanggal lahir tidak valid');location='index.php?page=akun'</script>";
-    exit;
+    redirect('index.php?page=akun', 'Tanggal lahir tidak valid', 'warning');
 }
 $tlahir = date('Y-m-d', $ts);
 
@@ -36,15 +32,13 @@ $cek->execute();
 $ada = $cek->get_result();
 if ($ada && $ada->num_rows > 0) {
     $cek->close();
-    echo "<script>alert('Nama sudah dipakai user lain');location='index.php?page=akun'</script>";
-    exit;
+    redirect('index.php?page=akun', 'Nama sudah dipakai user lain', 'danger');
 }
 $cek->close();
 
 if ($katasandi !== '') {
     if (mb_strlen($katasandi) < 6) {
-        echo "<script>alert('Kata sandi minimal 6 karakter');location='index.php?page=akun'</script>";
-        exit;
+        redirect('index.php?page=akun', 'Kata sandi minimal 6 karakter', 'warning');
     }
     $hash = password_hash($katasandi, PASSWORD_DEFAULT);
     $upd = $koneksi->prepare(
@@ -60,11 +54,9 @@ if ($katasandi !== '') {
 if ($upd->execute()) {
     $upd->close();
     $_SESSION['nama'] = $nama;
-    echo "<script>alert('Akun berhasil diubah');location='index.php?page=akun'</script>";
-    exit;
+    redirect('index.php?page=akun', 'Akun berhasil diubah', 'success');
 }
 
 error_log('Update akun gagal: ' . $upd->error);
 $upd->close();
-echo "<script>alert('Gagal mengubah akun');location='index.php?page=akun'</script>";
-exit;
+redirect('index.php?page=akun', 'Gagal mengubah akun', 'danger');

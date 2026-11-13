@@ -11,7 +11,7 @@
 
                 <?php $get = $koneksi->query("SELECT id_gejala, gejala FROM gejala ORDER BY id_gejala ASC") ?>
                 <?php while ($set = $get->fetch_assoc()) : ?>
-                    <?php $id_pertanyaan = (int) $set['id_gejala']; ?>
+                    <?php $id_pertanyaan = (int)$set['id_gejala']; ?>
                     <p class="text-center mb-0"><?= e($set['gejala']) ?></p>
                     <div class="text-center">
                         <div class="form-check form-check-inline">

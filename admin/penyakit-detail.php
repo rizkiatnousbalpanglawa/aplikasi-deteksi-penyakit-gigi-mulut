@@ -21,7 +21,7 @@
    </div>
    <!-- /.row -->
 
-   <?php $id = (int) ($_GET['id'] ?? 0); ?>
+   <?php $id = (int)($_GET['id'] ?? 0); ?>
 
    <div class="table-responsive">
        <table class="table table-striped table-bordered" id="tabelid" style="width:100%">
@@ -48,7 +48,7 @@
                        <td style="vertical-align: middle" class="text-center"><?= e($set['gejala']) ?></td>
                        <td style="vertical-align: middle" class="text-center">
                            <div class="btn-group-vertical" role="group" aria-label="...">
-                               <a href="penyakit-detail-hapus.php?id=<?= (int) $set['id_penyakit_gejala'] ?>&idp=<?= (int) $id ?>" class="btn btn-danger btn-sm" onclick="return confirm('Yakin Hapus')"><i class="fa fa-times"></i> Hapus</a>
+                               <a href="penyakit-detail-hapus.php?id=<?= (int)$set['id_penyakit_gejala'] ?>&idp=<?= (int)$id ?>" class="btn btn-danger btn-sm" onclick="return confirm('Yakin Hapus')"><i class="fa fa-times"></i> Hapus</a>
                            </div>
                        </td>
                    </tr>
@@ -77,7 +77,7 @@
                                     'SELECT id_gejala, gejala FROM gejala ORDER BY gejala ASC'
                                 ) ?>
                                <?php while ($setgejala = $getgejala->fetch_assoc()) : ?>
-                                   <option value="<?= (int) $setgejala['id_gejala'] ?>"><?= e($setgejala['gejala']) ?></option>
+                                   <option value="<?= (int)$setgejala['id_gejala'] ?>"><?= e($setgejala['gejala']) ?></option>
                                <?php endwhile ?>
                            </select>
                        </div>
@@ -94,10 +94,9 @@
    <?php
     if (isset($_POST['simpan'])) {
         csrf_check();
-        $id_gejala = (int) ($_POST['gejala'] ?? 0);
+        $id_gejala = (int)($_POST['gejala'] ?? 0);
         if ($id <= 0 || $id_gejala <= 0) {
-            echo "<script>alert('Relasi tidak valid');"
-                . "location='index.php?page=penyakit-detail&id=" . (int) $id . "'</script>";
+            redirect_js('index.php?page=penyakit-detail&id=' . (int)$id, 'Relasi tidak valid', 'warning');
         } else {
             $cek = $koneksi->prepare(
                 'SELECT id_penyakit_gejala FROM penyakit_gejala'
@@ -108,21 +107,18 @@
             $ada = $cek->get_result();
             if ($ada && $ada->num_rows > 0) {
                 $cek->close();
-                echo "<script>alert('Relasi sudah ada');"
-                    . "location='index.php?page=penyakit-detail&id=" . (int) $id . "'</script>";
+                redirect_js('index.php?page=penyakit-detail&id=' . (int)$id, 'Relasi sudah ada', 'warning');
             } else {
                 $cek->close();
                 $ins = $koneksi->prepare("INSERT INTO penyakit_gejala (id_jenis_penyakit, id_gejala) VALUES (?, ?)");
                 $ins->bind_param('ii', $id, $id_gejala);
                 if ($ins->execute()) {
                     $ins->close();
-                    echo "<script>alert('Data Berhasil Ditambahkan');"
-                        . "location='index.php?page=penyakit-detail&id=" . (int) $id . "'</script>";
+                    redirect_js('index.php?page=penyakit-detail&id=' . (int)$id, 'Data Berhasil Ditambahkan', 'success');
                 } else {
                     error_log('Tambah relasi gagal: ' . $ins->error);
                     $ins->close();
-                    echo "<script>alert('Gagal menyimpan relasi');"
-                        . "location='index.php?page=penyakit-detail&id=" . (int) $id . "'</script>";
+                    redirect_js('index.php?page=penyakit-detail&id=' . (int)$id, 'Gagal menyimpan relasi', 'danger');
                 }
             }
         }

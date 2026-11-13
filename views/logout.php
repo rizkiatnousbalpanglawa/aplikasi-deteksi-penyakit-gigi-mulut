@@ -1,8 +1,6 @@
 <?php
-require_once __DIR__ . '/../config/helpers.php';
-start_secure_session();
+require_once __DIR__ . '/../config/bootstrap.php';
 $_SESSION = [];
 session_destroy();
 
-echo "<script>location='login.php'</script>";
-exit;
+redirect('login.php');

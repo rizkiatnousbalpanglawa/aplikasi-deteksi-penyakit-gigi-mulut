@@ -1,7 +1,6 @@
 <?php
-require_once __DIR__ . "/../config/helpers.php";
+require_once __DIR__ . "/../config/bootstrap.php";
 require_admin();
-include "../config/koneksi.php";
 ?>
 
 <!DOCTYPE html>
@@ -77,6 +76,7 @@ include "../config/koneksi.php";
 
             <div class="container-fluid">
 
+                <?= flash_html() ?>
                 <?php
                 if (isset($_GET['page'])) {
                     switch ($_GET['page']) {
@@ -131,14 +131,11 @@ include "../config/koneksi.php";
     <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.10.20/js/jquery.dataTables.min.js"></script>
     <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.10.20/js/dataTables.bootstrap4.min.js"></script>
 
-
-
     <script>
         $(document).ready(function() {
             $('#tabelid').DataTable();
         });
     </script>
-
 
     <!-- Morris Charts JavaScript -->
     <script src="../assets/js/plugins/morris/raphael.min.js"></script>

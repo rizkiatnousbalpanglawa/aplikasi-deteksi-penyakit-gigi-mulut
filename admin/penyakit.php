@@ -45,9 +45,9 @@
                        <td style="vertical-align: middle" class="text-center"><?= e($set['penanganan']) ?></td>
                        <td style="vertical-align: middle" class="text-center">
                            <div class="btn-group-vertical" role="group" aria-label="...">
-                               <a href="index.php?page=penyakit-detail&id=<?= (int) $set['id_jenis_penyakit'] ?>" class="btn btn-primary btn-sm"><i class="fa fa-file-o"></i> Detail</a>
-                               <a href="index.php?page=penyakit-ubah&id=<?= (int) $set['id_jenis_penyakit'] ?>" class="btn btn-warning btn-sm"><i class="fa fa-pencil-square-o"></i> Ubah</a>
-                               <a href="index.php?page=penyakit-hapus&id=<?= (int) $set['id_jenis_penyakit'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('Yakin Hapus')"><i class="fa fa-times"></i> Hapus</a>
+                               <a href="index.php?page=penyakit-detail&id=<?= (int)$set['id_jenis_penyakit'] ?>" class="btn btn-primary btn-sm"><i class="fa fa-file-o"></i> Detail</a>
+                               <a href="index.php?page=penyakit-ubah&id=<?= (int)$set['id_jenis_penyakit'] ?>" class="btn btn-warning btn-sm"><i class="fa fa-pencil-square-o"></i> Ubah</a>
+                               <a href="index.php?page=penyakit-hapus&id=<?= (int)$set['id_jenis_penyakit'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('Yakin Hapus')"><i class="fa fa-times"></i> Hapus</a>
                            </div>
                        </td>
                    </tr>

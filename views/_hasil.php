@@ -17,7 +17,7 @@ if (!$set) {
     echo '<div class="container"><div class="alert alert-danger mt-3">Data tidak ditemukan.</div></div>';
     return;
 }
-$id_penyakit_gejala = (int) $set['id_jenis_penyakit'];
+$id_penyakit_gejala = (int)$set['id_jenis_penyakit'];
 ?>
 <div class="container">
     <div class="card mb-2">

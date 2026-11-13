@@ -1,19 +1,17 @@
 <?php
-require_once __DIR__ . "/../config/helpers.php";
+require_once __DIR__ . "/../config/bootstrap.php";
 require_admin();
-include "../config/koneksi.php";
 
 if (isset($_POST['simpan'])) {
     csrf_check();
 
-    $nama = trim((string) ($_POST['nama'] ?? ''));
-    $defenisi = trim((string) ($_POST['defenisi'] ?? ''));
-    $penyebab = trim((string) ($_POST['penyebab'] ?? ''));
-    $penanganan = trim((string) ($_POST['penanganan'] ?? ''));
+    $nama = trim((string)($_POST['nama'] ?? ''));
+    $defenisi = trim((string)($_POST['defenisi'] ?? ''));
+    $penyebab = trim((string)($_POST['penyebab'] ?? ''));
+    $penanganan = trim((string)($_POST['penanganan'] ?? ''));
 
     if ($nama === '' || $defenisi === '' || $penyebab === '' || $penanganan === '') {
-        echo "<script>alert('Semua field wajib diisi');location='index.php?page=penyakit'</script>";
-        exit;
+        redirect('index.php?page=penyakit', 'Semua field wajib diisi', 'warning');
     }
 
     $simpan = $koneksi->prepare(
@@ -24,15 +22,12 @@ if (isset($_POST['simpan'])) {
 
     if ($simpan->execute()) {
         $simpan->close();
-        echo "<script>alert('Data Berhasil Ditambahkan');location='index.php?page=penyakit'</script>";
-        exit;
+        redirect('index.php?page=penyakit', 'Data Berhasil Ditambahkan', 'success');
     }
 
     error_log('Tambah penyakit gagal: ' . $simpan->error);
     $simpan->close();
-    echo "<script>alert('Gagal menyimpan data');location='index.php?page=penyakit'</script>";
-    exit;
+    redirect('index.php?page=penyakit', 'Gagal menyimpan data', 'danger');
 }
 
-header('Location: index.php?page=penyakit');
-exit;
+redirect('index.php?page=penyakit');

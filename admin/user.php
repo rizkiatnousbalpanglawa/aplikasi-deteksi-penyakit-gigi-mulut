@@ -38,7 +38,7 @@
                        <td style="vertical-align: middle" class="text-center"><?= e($set['alamat']) ?></td>
                        <td style="vertical-align: middle" class="text-center"><?= e($set['no_hp']) ?></td>
                        <td style="vertical-align: middle" class="text-center">
-                           <a href="index.php?page=user-riwayat&id=<?= (int) $set['id_user'] ?>" class="btn btn-primary btn-sm"><i class="fa fa-file-o"></i> Riwayat</a>
+                           <a href="index.php?page=user-riwayat&id=<?= (int)$set['id_user'] ?>" class="btn btn-primary btn-sm"><i class="fa fa-file-o"></i> Riwayat</a>
                        </td>
                    </tr>
                <?php $no++; endwhile ?>

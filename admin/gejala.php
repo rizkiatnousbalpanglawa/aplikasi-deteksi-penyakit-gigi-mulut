@@ -36,7 +36,7 @@
                        <td style="vertical-align: middle" class="text-center"><?= e($set['gejala']) ?></td>
                        <td style="vertical-align: middle" class="text-center">
                            <div class="btn-group-vertical" role="group" aria-label="...">
-                               <a href="gejala-hapus.php?id=<?= (int) $set['id_gejala'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('Yakin Hapus')"><i class="fa fa-times"></i> Hapus</a>
+                               <a href="gejala-hapus.php?id=<?= (int)$set['id_gejala'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('Yakin Hapus')"><i class="fa fa-times"></i> Hapus</a>
                            </div>
                        </td>
                    </tr>
@@ -74,19 +74,19 @@
    <?php
     if (isset($_POST['simpan'])) {
        csrf_check();
-       $nama = trim((string) ($_POST['nama'] ?? ''));
+       $nama = trim((string)($_POST['nama'] ?? ''));
        if ($nama === '') {
-           echo "<script>alert('Gejala wajib diisi');location='index.php?page=gejala'</script>";
+           redirect_js('index.php?page=gejala', 'Gejala wajib diisi', 'warning');
        } else {
            $stmt = $koneksi->prepare("INSERT INTO gejala (gejala) VALUES (?)");
            $stmt->bind_param('s', $nama);
            if ($stmt->execute()) {
                $stmt->close();
-               echo "<script>alert('Data Berhasil Ditambahkan');location='index.php?page=gejala'</script>";
+               redirect_js('index.php?page=gejala', 'Data Berhasil Ditambahkan', 'success');
            } else {
                error_log('Tambah gejala gagal: ' . $stmt->error);
                $stmt->close();
-               echo "<script>alert('Gagal menyimpan data');location='index.php?page=gejala'</script>";
+               redirect_js('index.php?page=gejala', 'Gagal menyimpan data', 'danger');
            }
        }
     }

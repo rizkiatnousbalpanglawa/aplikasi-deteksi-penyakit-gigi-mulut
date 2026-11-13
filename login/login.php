@@ -1,17 +1,14 @@
 <?php
-require_once __DIR__ . '/../config/helpers.php';
-start_secure_session();
-include "../config/koneksi.php";
+require_once __DIR__ . '/../config/bootstrap.php';
 
 if (isset($_POST['masuk'])) {
     csrf_check();
 
-    $username = trim((string) ($_POST['username'] ?? ''));
-    $katasandi = (string) ($_POST['pass'] ?? '');
+    $username = trim((string)($_POST['username'] ?? ''));
+    $katasandi = (string)($_POST['pass'] ?? '');
 
     if ($username === '' || $katasandi === '') {
-        echo "<script>alert('Username dan kata sandi wajib diisi');location='index.php'</script>";
-        exit;
+        redirect('index.php', 'Username dan kata sandi wajib diisi', 'warning');
     }
 
     $stmt = $koneksi->prepare("SELECT username, kata_sandi FROM admin WHERE username = ? LIMIT 1");
@@ -21,7 +18,7 @@ if (isset($_POST['masuk'])) {
 
     if ($cek && $cek->num_rows === 1) {
         $row = $cek->fetch_assoc();
-        $hash = (string) $row['kata_sandi'];
+        $hash = (string)$row['kata_sandi'];
         $ok = false;
 
         if (str_starts_with($hash, '$2y$') || str_starts_with($hash, '$argon2')) {
@@ -48,14 +45,12 @@ if (isset($_POST['masuk'])) {
         if ($ok) {
             session_regenerate_id(true);
             $_SESSION['admin']['user'] = $row['username'];
-            header("Location: ../admin/index.php");
-            exit;
+            redirect('../admin/index.php');
         }
     }
 
     if (isset($stmt)) {
         $stmt->close();
     }
-    echo "<script>alert('Username dan katasandi tidak sesuai!');location='index.php'</script>";
-    exit;
+    redirect('index.php', 'Username dan katasandi tidak sesuai!', 'danger');
 }
